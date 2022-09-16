@@ -1,6 +1,6 @@
 import collections
 
-from happy.logger.appenders import Console, File, Visdom
+from placenta.logger.appenders import Console, File
 
 
 class Logger:

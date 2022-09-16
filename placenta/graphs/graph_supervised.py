@@ -15,12 +15,11 @@ from sklearn.metrics import (
     matthews_corrcoef,
 )
 
-from happy.train.utils import (
+from placenta.eval.eval import (
     plot_confusion_matrix,
     plot_tissue_pr_curves,
     get_tissue_confusion_matrix,
 )
-
 from placenta.models.graphsaint import GraphSAINT
 from placenta.models.shadow import ShaDowGCN
 from placenta.models.sign import SIGN as SIGN_MLP
