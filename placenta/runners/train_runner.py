@@ -186,7 +186,7 @@ class GraphSAGERunner(TrainRunner):
             ],
             batch_size=self.params.batch_size,
             shuffle=True,
-            num_workers=12,
+            num_workers=0,
         )
         val_loader = NeighborLoader(
             copy.copy(self.params.data),
@@ -248,14 +248,14 @@ class ClusterGCNRunner(TrainRunner):
             cluster_data,
             batch_size=self.params.batch_size,
             shuffle=True,
-            num_workers=12,
+            num_workers=0,
         )
         val_loader = NeighborSampler(
             self.params.data.edge_index,
             sizes=[-1],
             batch_size=1024,
             shuffle=False,
-            num_workers=12,
+            num_workers=0,
         )
         return train_loader, val_loader
 
@@ -325,14 +325,14 @@ class GraphSAINTRunner(TrainRunner):
             num_steps=30,
             sample_coverage=self.params.num_neighbours,
             shuffle=True,
-            num_workers=12,
+            num_workers=0,
         )
         val_loader = NeighborSampler(
             self.params.data.edge_index,
             sizes=[-1],
             batch_size=1024,
             shuffle=False,
-            num_workers=12,
+            num_workers=0,
         )
         return train_loader, val_loader
 
@@ -400,7 +400,7 @@ class ShaDowRunner(TrainRunner):
             num_neighbors=self.params.num_neighbours,
             node_idx=self.params.data.train_mask,
             batch_size=self.params.batch_size,
-            num_workers=12,
+            num_workers=0,
         )
         val_loader = ShaDowKHopSampler(
             self.params.data,
@@ -408,7 +408,7 @@ class ShaDowRunner(TrainRunner):
             num_neighbors=self.params.num_neighbours,
             node_idx=None,
             batch_size=self.params.batch_size,
-            num_workers=12,
+            num_workers=0,
             shuffle=False,
         )
         return train_loader, val_loader
@@ -470,7 +470,7 @@ class SIGNRunner(TrainRunner):
         train_idx = self.params.data.train_mask.nonzero(as_tuple=False).view(-1)
         val_idx = self.params.data.val_mask.nonzero(as_tuple=False).view(-1)
         train_loader = DataLoader(
-            train_idx, batch_size=self.params.batch_size, shuffle=True, num_workers=12
+            train_idx, batch_size=self.params.batch_size, shuffle=True, num_workers=0
         )
         val_loader = DataLoader(
             val_idx, batch_size=self.params.batch_size, shuffle=False
@@ -554,7 +554,7 @@ class MLPRunner(TrainRunner):
         train_idx = self.params.data.train_mask.nonzero(as_tuple=False).view(-1)
         val_idx = self.params.data.val_mask.nonzero(as_tuple=False).view(-1)
         train_loader = DataLoader(
-            train_idx, batch_size=self.params.batch_size, shuffle=True, num_workers=12
+            train_idx, batch_size=self.params.batch_size, shuffle=True, num_workers=0
         )
         val_loader = DataLoader(
             val_idx, batch_size=self.params.batch_size, shuffle=False

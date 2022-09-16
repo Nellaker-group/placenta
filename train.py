@@ -1,4 +1,4 @@
-from typing import Optional, List
+from typing import Optional
 
 import typer
 from torch_geometric.transforms import SIGN
@@ -7,7 +7,7 @@ from torch_geometric.data import Batch
 from placenta.organs.organs import Placenta
 from placenta.logger.logger import Logger
 from placenta.utils.utils import setup_run, get_device
-from placenta.graphs.enums import FeatureArg, MethodArg, ModelsArg
+from placenta.graphs.enums import ModelsArg
 from placenta.graphs.graph_supervised import setup_node_splits, collect_params
 from placenta.runners.train_runner import RunParams, TrainRunner
 from placenta.data.process_data import get_data
@@ -17,47 +17,52 @@ from placenta.utils.utils import send_graph_to_device, set_seed, get_project_dir
 def main(
     seed: int = 0,
     exp_name: str = typer.Option(...),
-    wsi_ids: List[int] = typer.Option([]),
-    x_min: int = 0,
-    y_min: int = 0,
-    width: int = -1,
-    height: int = -1,
-    k: int = 5,
-    feature: FeatureArg = FeatureArg.embeddings,
     pretrained: Optional[str] = None,
     model_type: ModelsArg = typer.Option(...),
-    graph_method: MethodArg = MethodArg.k,
     batch_size: int = typer.Option(...),
     num_neighbours: int = typer.Option(...),
-    epochs: int = typer.Option(...),
-    layers: int = typer.Option(...),
+    epochs: int = 1000,
+    layers: int = 16,
     hidden_units: int = 256,
     dropout: float = 0.5,
     learning_rate: float = 0.001,
     weighted_loss: bool = True,
     use_custom_weights: bool = True,
-    groundtruth_tsvs: List[str] = typer.Option([]),
-    val_patch_files: Optional[List[str]] = [],
-    test_patch_files: Optional[List[str]] = [],
     validation_step: int = 25,
     verbose: bool = True,
 ):
+    """
+    Train a model on the placenta dataset using the default cell graph construction.
+    :param seed: set the random seed
+    :param exp_name: name of the experiment (used for saving the model)
+    :param pretrained: path to a pretrained model
+    :param model_type: type of model to train, one of ModelsArg
+    :param batch_size:
+    :param num_neighbours:
+    :param epochs:
+    :param layers:
+    :param hidden_units:
+    :param dropout:
+    :param learning_rate:
+    :param weighted_loss:
+    :param use_custom_weights:
+    :param validation_step:
+    :param verbose:
+    :return:
+    """
+
     organ = Placenta
-    graph_method = graph_method.value
-    feature = feature.value
     device = get_device()
     set_seed(seed)
     project_dir = get_project_dir()
     pretrained_path = project_dir / pretrained if pretrained else None
 
-    if len(val_patch_files) > 0:
-        val_patch_files = [
-            project_dir / "splits_config" / file for file in val_patch_files
-        ]
-    if len(test_patch_files) > 0:
-        test_patch_files = [
-            project_dir / "splits_config" / file for file in test_patch_files
-        ]
+    val_patch_files = [
+        project_dir / "splits_config" / file for file in "val_patches.csv"
+    ]
+    test_patch_files = [
+        project_dir / "splits_config" / file for file in "test_patches.csv"
+    ]
 
     # Setup recording of stats per batch and epoch
     logger = Logger(
@@ -65,20 +70,20 @@ def main(
     )
 
     datas = []
-    for i, wsi_id in enumerate(wsi_ids):
+    for i, wsi_id in enumerate([1, 2]):
         # Make graph data object
         data, groundtruth = get_data(
             project_dir,
             organ,
             wsi_id,
-            x_min,
-            y_min,
-            width,
-            height,
-            groundtruth_tsvs,
-            feature,
-            graph_method,
-            k,
+            0,
+            0,
+            -1,
+            -1,
+            ["wsi_1.tsv", "wsi_2.tsv"],
+            "embeddings",
+            "intersection",
+            5,
             verbose,
         )
 
@@ -93,10 +98,7 @@ def main(
                 test_patch_files,
             )
         else:
-            if len(val_patch_files) == 0:
-                data = setup_node_splits(data, groundtruth, True)
-            else:
-                data = setup_node_splits(data, groundtruth, True, False)
+            data = setup_node_splits(data, groundtruth, True, False)
         datas.append(data)
 
     # Combine multiple graphs into a single graph
@@ -132,14 +134,14 @@ def main(
     params = collect_params(
         seed,
         exp_name,
-        wsi_ids,
-        x_min,
-        y_min,
-        width,
-        height,
-        k,
-        feature,
-        graph_method,
+        [1, 2],
+        0,
+        0,
+        -1,
+        -1,
+        5,
+        "embeddings",
+        "intersection",
         run_params,
     )
     params.to_csv(run_path / "params.csv", index=False)

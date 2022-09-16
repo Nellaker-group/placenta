@@ -3,8 +3,8 @@ import shutil
 
 import pytest
 
-from graph_train import main as graph_train
-from graph_eval import main as graph_eval
+from train_custom import main as train
+from eval import main as eval
 from placenta.graphs.enums import *
 from placenta.utils.utils import get_project_dir
 
@@ -19,7 +19,7 @@ def get_run_dir(model_type):
 
 def test_train_sage():
     model_type = ModelsArg.graphsage
-    graph_train(
+    train(
         exp_name="test",
         wsi_ids=[1],
         x_min=93481,
@@ -43,7 +43,7 @@ def test_train_sage():
     assert os.path.exists(run_dir / "params.csv")
 
     timestamp_dir = run_dir.parts[-1]
-    graph_eval(
+    eval(
         exp_name="test",
         model_weights_dir=timestamp_dir,
         model_type=model_type.value,
@@ -63,7 +63,7 @@ def test_train_sage():
 
 def test_train_clustergcn():
     model_type = ModelsArg.clustergcn
-    graph_train(
+    train(
         exp_name="test",
         wsi_ids=[1],
         x_min=93481,
@@ -87,7 +87,7 @@ def test_train_clustergcn():
     assert os.path.exists(run_dir / "params.csv")
 
     timestamp_dir = run_dir.parts[-1]
-    graph_eval(
+    eval(
         exp_name="test",
         model_weights_dir=timestamp_dir,
         model_type=model_type.value,
@@ -107,7 +107,7 @@ def test_train_clustergcn():
 
 def test_train_saint():
     model_type = ModelsArg.graphsaint
-    graph_train(
+    train(
         exp_name="test",
         wsi_ids=[1],
         x_min=93481,
@@ -132,7 +132,7 @@ def test_train_saint():
     assert os.path.exists(run_dir / "params.csv")
 
     timestamp_dir = run_dir.parts[-1]
-    graph_eval(
+    eval(
         exp_name="test",
         model_weights_dir=timestamp_dir,
         model_type=model_type.value,
@@ -152,7 +152,7 @@ def test_train_saint():
 
 def test_train_sign():
     model_type = ModelsArg.sign
-    graph_train(
+    train(
         exp_name="test",
         wsi_ids=[1],
         x_min=93481,
@@ -177,7 +177,7 @@ def test_train_sign():
     assert os.path.exists(run_dir / "params.csv")
 
     timestamp_dir = run_dir.parts[-1]
-    graph_eval(
+    eval(
         exp_name="test",
         model_weights_dir=timestamp_dir,
         model_type=model_type.value,
@@ -197,7 +197,7 @@ def test_train_sign():
 
 def test_train_mlp():
     model_type = ModelsArg.mlp
-    graph_train(
+    train(
         exp_name="test",
         wsi_ids=[1],
         x_min=93481,
@@ -222,7 +222,7 @@ def test_train_mlp():
     assert os.path.exists(run_dir / "params.csv")
 
     timestamp_dir = run_dir.parts[-1]
-    graph_eval(
+    eval(
         exp_name="test",
         model_weights_dir=timestamp_dir,
         model_type=model_type.value,
@@ -242,7 +242,7 @@ def test_train_mlp():
 
 def test_train_gat():
     model_type = ModelsArg.gat
-    graph_train(
+    train(
         exp_name="test",
         wsi_ids=[1],
         x_min=93481,
@@ -267,7 +267,7 @@ def test_train_gat():
     assert os.path.exists(run_dir / "params.csv")
 
     timestamp_dir = run_dir.parts[-1]
-    graph_eval(
+    eval(
         exp_name="test",
         model_weights_dir=timestamp_dir,
         model_type=model_type.value,
@@ -287,7 +287,7 @@ def test_train_gat():
 
 def test_train_gatv2():
     model_type = ModelsArg.gatv2
-    graph_train(
+    train(
         exp_name="test",
         wsi_ids=[1],
         x_min=93481,
@@ -312,7 +312,7 @@ def test_train_gatv2():
     assert os.path.exists(run_dir / "params.csv")
 
     timestamp_dir = run_dir.parts[-1]
-    graph_eval(
+    eval(
         exp_name="test",
         model_weights_dir=timestamp_dir,
         model_type=model_type.value,
@@ -332,7 +332,7 @@ def test_train_gatv2():
 
 def test_train_shadow():
     model_type = ModelsArg.shadow
-    graph_train(
+    train(
         exp_name="test",
         wsi_ids=[1],
         x_min=93481,
@@ -357,7 +357,7 @@ def test_train_shadow():
     assert os.path.exists(run_dir / "params.csv")
 
     timestamp_dir = run_dir.parts[-1]
-    graph_eval(
+    eval(
         exp_name="test",
         model_weights_dir=timestamp_dir,
         model_type=model_type.value,

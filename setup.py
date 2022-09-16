@@ -20,8 +20,8 @@ setup(
     python_requires=">=3.7.2",
     entry_points={
         "console_scripts": [
-            "train=graph_train:main",
-            "eval=graph_eval:main",
+            "train=train:main",
+            "eval=eval:main",
         ]
     },
 )
