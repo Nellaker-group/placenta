@@ -25,7 +25,7 @@ from placenta.models.shadow import ShaDowGCN
 from placenta.models.sign import SIGN as SIGN_MLP
 from placenta.models.mlp import MLP
 from placenta.organs.organs import Organ
-from placenta.graphs.enums import SupervisedModelsArg
+from placenta.graphs.enums import ModelsArg
 
 
 @dataclass
@@ -33,7 +33,7 @@ class RunParams:
     data: Data
     device: str
     pretrained: Optional[str]
-    model_type: SupervisedModelsArg
+    model_type: ModelsArg
     batch_size: int
     num_neighbours: int
     epochs: int
@@ -42,7 +42,7 @@ class RunParams:
     dropout: float
     learning_rate: float
     weighted_loss: bool
-    use_custom_weights: bool
+    custom_weights: bool
     organ: Organ
 
 
@@ -66,16 +66,17 @@ class TrainRunner:
     @staticmethod
     def new(params: RunParams) -> "TrainRunner":
         cls = {
-            SupervisedModelsArg.sup_graphsage: GraphSAGERunner,
-            SupervisedModelsArg.sup_clustergcn: ClusterGCNRunner,
-            SupervisedModelsArg.sup_gat: GATRunner,
-            SupervisedModelsArg.sup_gatv2: GATV2Runner,
-            SupervisedModelsArg.sup_graphsaint: GraphSAINTRunner,
-            SupervisedModelsArg.sup_shadow: ShaDowRunner,
-            SupervisedModelsArg.sup_sign: SIGN_MLP,
-            SupervisedModelsArg.sup_mlp: MLP,
-        }[params.model_type]
-        return cls(params)
+            ModelsArg.graphsage: GraphSAGERunner,
+            ModelsArg.clustergcn: ClusterGCNRunner,
+            ModelsArg.gat: GATRunner,
+            ModelsArg.gatv2: GATV2Runner,
+            ModelsArg.graphsaint: GraphSAINTRunner,
+            ModelsArg.shadow: ShaDowRunner,
+            ModelsArg.sign: SIGNRunner,
+            ModelsArg.mlp: MLPRunner,
+        }
+        ModelClass = cls[params.model_type]
+        return ModelClass(params)
 
     @property
     def model(self):
@@ -211,7 +212,7 @@ class GraphSAGERunner(TrainRunner):
         if self.params.weighted_loss:
             data_classes = self.params.data.y[self.params.data.train_mask].numpy()
             class_weights = _compute_tissue_weights(
-                data_classes, self.params.organ, self.params.use_custom_weights
+                data_classes, self.params.organ, self.params.custom_weights
             )
             class_weights = torch.FloatTensor(class_weights)
             class_weights = class_weights.to(self.params.device)
@@ -272,7 +273,7 @@ class ClusterGCNRunner(TrainRunner):
             self.params.weighted_loss,
             self.params.data,
             self.params.organ,
-            self.params.use_custom_weights,
+            self.params.custom_weights,
             self.params.device,
         )
 
@@ -349,7 +350,7 @@ class GraphSAINTRunner(TrainRunner):
             self.params.weighted_loss,
             self.params.data,
             self.params.organ,
-            self.params.use_custom_weights,
+            self.params.custom_weights,
             self.params.device,
             reduction="none",
         )
@@ -426,7 +427,7 @@ class ShaDowRunner(TrainRunner):
             self.params.weighted_loss,
             self.params.data,
             self.params.organ,
-            self.params.use_custom_weights,
+            self.params.custom_weights,
             self.params.device,
         )
 
@@ -490,7 +491,7 @@ class SIGNRunner(TrainRunner):
             self.params.weighted_loss,
             self.params.data,
             self.params.organ,
-            self.params.use_custom_weights,
+            self.params.custom_weights,
             self.params.device,
         )
 
@@ -516,7 +517,22 @@ class SIGNRunner(TrainRunner):
     def validate(self):
         data = self.params.data
         self.model.eval()
-        out = []
+        train_out = []
+        for idx in self.train_loader:
+            eval_x = [data.x[idx].to(self.params.device)]
+            eval_x += [
+                data[f"x{i}"][idx].to(self.params.device)
+                for i in range(1, self.model.num_layers + 1)
+            ]
+            out_i, _ = self.model.inference(eval_x)
+            train_out.append(out_i)
+        train_out = torch.cat(train_out, dim=0)
+        train_out = train_out.argmax(dim=-1)
+        y = data.y.to(train_out.device)
+        train_accuracy = int((train_out.eq(y[data.train_mask])).sum()) / int(
+            data.train_mask.sum()
+        )
+        val_out = []
         for idx in self.val_loader:
             eval_x = [data.x[idx].to(self.params.device)]
             eval_x += [
@@ -524,12 +540,13 @@ class SIGNRunner(TrainRunner):
                 for i in range(1, self.model.num_layers + 1)
             ]
             out_i, _ = self.model.inference(eval_x)
-            out.append(out_i)
-        out = torch.cat(out, dim=0)
-        out = out.argmax(dim=-1)
-        y = data.y.to(out.device)
-        val_accuracy = int((out.eq(y[data.val_mask])).sum()) / int(data.val_mask.sum())
-        return None, val_accuracy
+            val_out.append(out_i)
+        val_out = torch.cat(val_out, dim=0)
+        val_out = val_out.argmax(dim=-1)
+        val_accuracy = int((val_out.eq(y[data.val_mask])).sum()) / int(
+            data.val_mask.sum()
+        )
+        return train_accuracy, val_accuracy
 
 
 class MLPRunner(TrainRunner):
@@ -558,7 +575,7 @@ class MLPRunner(TrainRunner):
             self.params.weighted_loss,
             self.params.data,
             self.params.organ,
-            self.params.use_custom_weights,
+            self.params.custom_weights,
             self.params.device,
         )
 
@@ -580,24 +597,36 @@ class MLPRunner(TrainRunner):
     def validate(self):
         data = self.params.data
         self.model.eval()
-        out = []
+        train_out = []
+        for idx in self.train_loader:
+            eval_x = data.x[idx].to(self.params.device)
+            out_i, _ = self.model.inference(eval_x)
+            train_out.append(out_i)
+        train_out = torch.cat(train_out, dim=0)
+        train_out = train_out.argmax(dim=-1)
+        y = data.y.to(train_out.device)
+        train_accuracy = int((train_out.eq(y[data.train_mask])).sum()) / int(
+            data.train_mask.sum()
+        )
+        val_out = []
         for idx in self.val_loader:
             eval_x = data.x[idx].to(self.params.device)
             out_i, _ = self.model.inference(eval_x)
-            out.append(out_i)
-        out = torch.cat(out, dim=0)
-        out = out.argmax(dim=-1)
-        y = data.y.to(out.device)
-        val_accuracy = int((out.eq(y[data.val_mask])).sum()) / int(data.val_mask.sum())
-        return None, val_accuracy
+            val_out.append(out_i)
+        val_out = torch.cat(val_out, dim=0)
+        val_out = val_out.argmax(dim=-1)
+        val_accuracy = int((val_out.eq(y[data.val_mask])).sum()) / int(
+            data.val_mask.sum()
+        )
+        return train_accuracy, val_accuracy
 
 
 def _default_criterion(
-    weighted_loss, data, organ, use_custom_weights, device, reduction="mean"
+    weighted_loss, data, organ, custom_weights, device, reduction="mean"
 ):
     if weighted_loss:
         data_classes = data.y[data.train_mask].numpy()
-        class_weights = _compute_tissue_weights(data_classes, organ, use_custom_weights)
+        class_weights = _compute_tissue_weights(data_classes, organ, custom_weights)
         class_weights = torch.FloatTensor(class_weights)
         class_weights = class_weights.to(device)
         criterion = torch.nn.NLLLoss(weight=class_weights, reduction=reduction)
@@ -606,9 +635,9 @@ def _default_criterion(
     return criterion
 
 
-def _compute_tissue_weights(data_classes, organ, use_custom_weights):
+def _compute_tissue_weights(data_classes, organ, custom_weights):
     unique_classes = np.unique(data_classes)
-    if not use_custom_weights:
+    if not custom_weights:
         weighting = "balanced"
     else:
         custom_weights = [1, 0.85, 0.9, 10.5, 0.8, 1.3, 5.6, 3, 77]

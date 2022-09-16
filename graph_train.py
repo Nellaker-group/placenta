@@ -7,7 +7,7 @@ from torch_geometric.data import Batch
 from placenta.organs.organs import Placenta
 from placenta.logger.logger import Logger
 from placenta.utils.utils import setup_run, get_device
-from placenta.graphs.enums import FeatureArg, MethodArg, SupervisedModelsArg
+from placenta.graphs.enums import FeatureArg, MethodArg, ModelsArg
 from placenta.graphs.graph_supervised import setup_node_splits, collect_params
 from placenta.runners.train_runner import RunParams, TrainRunner
 from placenta.data.process_data import get_data
@@ -25,7 +25,7 @@ def main(
     k: int = 5,
     feature: FeatureArg = FeatureArg.embeddings,
     pretrained: Optional[str] = None,
-    model_type: SupervisedModelsArg = SupervisedModelsArg.sup_graphsage,
+    model_type: ModelsArg = typer.Option(...),
     graph_method: MethodArg = MethodArg.k,
     batch_size: int = typer.Option(...),
     num_neighbours: int = typer.Option(...),
@@ -102,9 +102,9 @@ def main(
     # Combine multiple graphs into a single graph
     data = Batch.from_data_list(datas)
     # Final data setup
-    if model_type.value == "sup_shadow":
+    if model_type.value == "shadow":
         del data.batch  # bug in pyg when using shadow model and Batch
-    elif model_type.value == "sup_sign":
+    elif model_type.value == "sign":
         data = SIGN(layers)(data)  # precompute SIGN fixed embeddings
     send_graph_to_device(data, device)
 
@@ -125,7 +125,7 @@ def main(
         use_custom_weights,
         organ,
     )
-    train_runner = TrainRunner(run_params)
+    train_runner = TrainRunner.new(run_params)
 
     # Saves each run by its timestamp and record params for the run
     run_path = setup_run(project_dir, f"{model_type}/{exp_name}")
@@ -160,7 +160,7 @@ def main(
 
                 # Save new best model
                 if val_accuracy >= prev_best_val:
-                    train_runner.save_state(run_path, logger, epochs)
+                    train_runner.save_state(run_path, logger, epoch)
                     print("Saved best model")
                     prev_best_val = val_accuracy
 
@@ -168,7 +168,7 @@ def main(
         save_hp = input("Would you like to save anyway? y/n: ")
         if save_hp == "y":
             # Save the interrupted model
-            train_runner.save_state(run_path, logger, epochs)
+            train_runner.save_state(run_path, logger, epoch)
 
     # Save the fully trained model
     train_runner.save_state(run_path, logger, "final")

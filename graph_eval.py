@@ -18,7 +18,7 @@ from placenta.utils.utils import get_device
 from placenta.organs.organs import Placenta
 from placenta.data.get_raw_data import get_groundtruth_patch, get_raw_data
 from placenta.graphs.create_graph import setup_graph
-from placenta.utils.utils import get_feature, set_seed
+from placenta.utils.utils import get_feature, set_seed, get_project_dir
 from placenta.graphs.enums import FeatureArg, MethodArg
 from placenta.analysis.vis_graph_patch import visualize_points
 from placenta.graphs.graph_supervised import (
@@ -40,7 +40,6 @@ def main(
     val_patch_files: Optional[List[str]] = None,
     k: int = 5,
     feature: FeatureArg = FeatureArg.embeddings,
-    top_conf: bool = False,
     model_type: str = typer.Option(...),
     graph_method: MethodArg = MethodArg.k,
     remove_unlabelled: bool = True,
@@ -50,8 +49,8 @@ def main(
     organ = Placenta
     device = get_device()
     set_seed(0)
-    project_dir = Path.cwd()
-    patch_files = [project_dir / "config" / file for file in val_patch_files]
+    project_dir = get_project_dir()
+    patch_files = [project_dir / "splits_config" / file for file in val_patch_files]
 
     print("Begin graph construction...")
     predictions, embeddings, coords, confidence = get_raw_data(
@@ -88,7 +87,6 @@ def main(
     pretrained_path = (
         project_dir
         / "results"
-        / "graph"
         / model_type
         / exp_name
         / model_weights_dir
@@ -101,7 +99,7 @@ def main(
         else f"model_{model_name.split('_')[0]}"
     )
 
-    if model_type == "sup_sign":
+    if model_type == "sign":
         data = SIGN(model.num_layers)(data)  # precompute SIGN fixed embeddings
 
     # Setup paths
@@ -109,11 +107,10 @@ def main(
         Path(*pretrained_path.parts[:-1]) / "eval" / model_epochs / f"run_{wsi_id}"
     )
     save_path.mkdir(parents=True, exist_ok=True)
-    conf_str = "_top_conf" if top_conf else ""
-    plot_name = f"{val_patch_files[0].split('.csv')[0]}_{conf_str}"
+    plot_name = f"{val_patch_files[0].split('.csv')[0]}"
 
     # Dataloader for eval, feeds in whole graph
-    if model_type == "sup_graphsage":
+    if model_type == "graphsage":
         eval_loader = NeighborLoader(
             data,
             num_neighbors=[-1],
@@ -122,7 +119,7 @@ def main(
         )
         eval_loader.data.num_nodes = data.num_nodes
         eval_loader.data.n_id = torch.arange(data.num_nodes)
-    elif model_type == "sup_shadow":
+    elif model_type == "shadow":
         eval_loader = ShaDowKHopSampler(
             data,
             depth=6,
@@ -131,7 +128,7 @@ def main(
             batch_size=4000,
             shuffle=False,
         )
-    elif model_type == "sup_sign" or model_type == "sup_mlp":
+    elif model_type == "sign" or model_type == "mlp":
         eval_loader = DataLoader(range(data.num_nodes), batch_size=512, shuffle=False)
     else:
         eval_loader = NeighborSampler(
@@ -143,7 +140,7 @@ def main(
         )
 
     # Run inference and get predicted labels for nodes
-    if model_type == "sup_mlp" or model_type == "sup_sign":
+    if model_type == "mlp" or model_type == "sign":
         out, graph_embeddings, predicted_labels = inference_mlp(
             model, data, eval_loader, device
         )

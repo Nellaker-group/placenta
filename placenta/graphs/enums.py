@@ -11,12 +11,12 @@ class MethodArg(str, Enum):
     intersection = "intersection"
 
 
-class SupervisedModelsArg(str, Enum):
-    sup_graphsage = "sup_graphsage"
-    sup_clustergcn = "sup_clustergcn"
-    sup_graphsaint = "sup_graphsaint"
-    sup_sign = "sup_sign"
-    sup_shadow = "sup_shadow"
-    sup_gat = "sup_gat"
-    sup_gatv2 = "sup_gatv2"
-    sup_mlp = "sup_mlp"
+class ModelsArg(str, Enum):
+    graphsage = "graphsage"
+    clustergcn = "clustergcn"
+    graphsaint = "graphsaint"
+    sign = "sign"
+    shadow = "shadow"
+    gat = "gat"
+    gatv2 = "gatv2"
+    mlp = "mlp"

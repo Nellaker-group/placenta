@@ -18,7 +18,7 @@ def get_run_dir(model_type):
 
 
 def test_train_sage():
-    model_type = SupervisedModelsArg.sup_graphsage
+    model_type = ModelsArg.graphsage
     graph_train(
         exp_name="test",
         wsi_ids=[1],
@@ -62,7 +62,7 @@ def test_train_sage():
 
 
 def test_train_clustergcn():
-    model_type = SupervisedModelsArg.sup_clustergcn
+    model_type = ModelsArg.clustergcn
     graph_train(
         exp_name="test",
         wsi_ids=[1],
@@ -106,7 +106,7 @@ def test_train_clustergcn():
 
 
 def test_train_saint():
-    model_type = SupervisedModelsArg.sup_graphsaint_rw
+    model_type = ModelsArg.graphsaint
     graph_train(
         exp_name="test",
         wsi_ids=[1],
@@ -151,7 +151,7 @@ def test_train_saint():
 
 
 def test_train_sign():
-    model_type = SupervisedModelsArg.sup_sign
+    model_type = ModelsArg.sign
     graph_train(
         exp_name="test",
         wsi_ids=[1],
@@ -196,7 +196,7 @@ def test_train_sign():
 
 
 def test_train_mlp():
-    model_type = SupervisedModelsArg.sup_mlp
+    model_type = ModelsArg.mlp
     graph_train(
         exp_name="test",
         wsi_ids=[1],
@@ -241,7 +241,7 @@ def test_train_mlp():
 
 
 def test_train_gat():
-    model_type = SupervisedModelsArg.sup_gat
+    model_type = ModelsArg.gat
     graph_train(
         exp_name="test",
         wsi_ids=[1],
@@ -286,7 +286,7 @@ def test_train_gat():
 
 
 def test_train_gatv2():
-    model_type = SupervisedModelsArg.sup_gatv2
+    model_type = ModelsArg.gatv2
     graph_train(
         exp_name="test",
         wsi_ids=[1],
@@ -331,7 +331,7 @@ def test_train_gatv2():
 
 
 def test_train_shadow():
-    model_type = SupervisedModelsArg.sup_shadow
+    model_type = ModelsArg.shadow
     graph_train(
         exp_name="test",
         wsi_ids=[1],
