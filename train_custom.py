@@ -79,10 +79,10 @@ def main(
     pretrained_path = project_dir / pretrained if pretrained else None
 
     val_patch_files = [
-        project_dir / "datasets" / "splits" / file for file in val_patch_files
+        project_dir / "datasets" / "raw" / file for file in val_patch_files
     ]
     test_patch_files = [
-        project_dir / "datasets" / "splits" / file for file in test_patch_files
+        project_dir / "datasets" / "raw" / file for file in test_patch_files
     ]
 
     # Setup recording of stats per batch and epoch

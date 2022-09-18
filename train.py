@@ -2,16 +2,15 @@ from typing import Optional
 
 import typer
 from torch_geometric.transforms import SIGN
-from torch_geometric.data import Batch
 
-from placenta.organs.organs import Placenta
 from placenta.logger.logger import Logger
 from placenta.utils.utils import setup_run, get_device
 from placenta.graphs.enums import ModelsArg
-from placenta.graphs.graph_supervised import setup_node_splits, collect_params
+from placenta.graphs.graph_supervised import collect_params
 from placenta.runners.train_runner import TrainParams, TrainRunner
-from placenta.data.process_data import get_data
 from placenta.utils.utils import send_graph_to_device, set_seed, get_project_dir
+from placenta.organs.organs import Placenta as organ
+from placenta.data.dataset import Placenta
 
 
 def main(
@@ -29,7 +28,6 @@ def main(
     weighted_loss: bool = True,
     use_custom_weights: bool = True,
     validation_step: int = 100,
-    verbose: bool = True,
 ):
     """
     Train a model on the placenta dataset using the default cell graph construction.
@@ -50,58 +48,21 @@ def main(
     :param verbose: whether to print graph setup
     """
 
-    organ = Placenta
+    # organ = organs.Placenta
     device = get_device()
     set_seed(seed)
     project_dir = get_project_dir()
     pretrained_path = project_dir / pretrained if pretrained else None
-
-    val_patch_files = [
-        project_dir / "datasets" / "splits" / file for file in "val_patches.csv"
-    ]
-    test_patch_files = [
-        project_dir / "datasets" / "splits" / file for file in "test_patches.csv"
-    ]
 
     # Setup recording of stats per batch and epoch
     logger = Logger(
         list(["train", "train_inf", "val"]), ["loss", "accuracy"], file=True
     )
 
-    datas = []
-    for i, wsi_id in enumerate([1, 2]):
-        # Make graph data object
-        data, groundtruth = get_data(
-            project_dir,
-            organ,
-            wsi_id,
-            0,
-            0,
-            -1,
-            -1,
-            ["wsi_1.tsv", "wsi_2.tsv"],
-            "embeddings",
-            "intersection",
-            5,
-            verbose,
-        )
+    # Download, process, and load graph
+    dataset =  Placenta(project_dir / "datasets")
+    data = dataset[0]
 
-        # Split nodes into unlabelled, training and validation sets
-        if wsi_id == 1:
-            data = setup_node_splits(
-                data,
-                groundtruth,
-                True,
-                True,
-                val_patch_files,
-                test_patch_files,
-            )
-        else:
-            data = setup_node_splits(data, groundtruth, True, False)
-        datas.append(data)
-
-    # Combine multiple graphs into a single graph
-    data = Batch.from_data_list(datas)
     # Final data setup
     if model_type.value == "shadow":
         del data.batch  # bug in pyg when using shadow model and Batch
@@ -146,6 +107,7 @@ def main(
         run_params,
     )
     params.to_csv(run_path / "params.csv", index=False)
+    train_runner.params.save(run_path)
 
     # Train!
     try:

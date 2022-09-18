@@ -9,7 +9,7 @@ from placenta.hdf5.utils import get_data_in_patch
 
 
 def get_groundtruth_patch(
-    organ, project_dir, x_min, y_min, width, height, groundtruth_tsv
+    project_dir, x_min, y_min, width, height, groundtruth_tsv
 ):
     if not groundtruth_tsv:
         print("No tissue label tsv supplied")
@@ -26,10 +26,7 @@ def get_groundtruth_patch(
 
     if x_min == 0 and y_min == 0 and width == -1 and height == -1:
         sort_args = np.lexsort((ys, xs))
-        tissue_ids = np.array(
-            [organ.tissue_by_label(tissue_name).id for tissue_name in groundtruth]
-        )
-        return xs[sort_args], ys[sort_args], tissue_ids[sort_args]
+        return xs[sort_args], ys[sort_args], groundtruth[sort_args]
 
     mask = np.logical_and(
         (np.logical_and(xs > x_min, (ys > y_min))),
@@ -39,12 +36,8 @@ def get_groundtruth_patch(
     patch_ys = ys[mask]
     patch_groundtruth = groundtruth[mask]
 
-    patch_tissue_ids = np.array(
-        [organ.tissue_by_label(tissue_name).id for tissue_name in patch_groundtruth]
-    )
     sort_args = np.lexsort((patch_ys, patch_xs))
-
-    return patch_xs[sort_args], patch_ys[sort_args], patch_tissue_ids[sort_args]
+    return patch_xs[sort_args], patch_ys[sort_args], patch_groundtruth[sort_args]
 
 
 def get_raw_data(wsi_id, x_min, y_min, width, height, verbose=True):

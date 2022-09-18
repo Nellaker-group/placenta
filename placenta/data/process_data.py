@@ -61,7 +61,6 @@ def get_data_and_groundtruth(
     )
     # Get ground truth manually annotated data
     _, _, groundtruth = get_groundtruth_patch(
-        organ,
         project_dir,
         x_min,
         y_min,

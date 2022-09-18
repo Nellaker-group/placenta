@@ -52,7 +52,7 @@ def main(
     set_seed(0)
     project_dir = get_project_dir()
     patch_files = [
-        project_dir / "datasets" / "splits" / file for file in val_patch_files
+        project_dir / "datasets" / "raw" / file for file in val_patch_files
     ]
 
     print("Begin graph construction...")
@@ -61,7 +61,6 @@ def main(
     )
     # Get ground truth manually annotated data
     _, _, groundtruth = get_groundtruth_patch(
-        organ,
         project_dir,
         x_min,
         y_min,

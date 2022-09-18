@@ -20,7 +20,7 @@ def main(
     organ = Placenta
 
     xs, ys, groundtruth = get_groundtruth_patch(
-        organ, project_dir, x_min, y_min, width, height, groundtruth_tsv
+        project_dir, x_min, y_min, width, height, groundtruth_tsv
     )
 
     if remove_unlabelled:

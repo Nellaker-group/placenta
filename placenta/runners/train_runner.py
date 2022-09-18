@@ -47,8 +47,13 @@ class TrainParams:
     organ: Organ
 
     def save(self, run_path):
-        with open(run_path / "train_params.csv", 'w') as f:
-            json.dump(asdict(self), f, indent=2)
+        to_save = {
+            k: v
+            for k, v in asdict(self).items()
+            if k not in ("data", "organ")
+        }
+        with open(run_path / "train_params.csv", "w") as f:
+            json.dump(to_save, f, indent=2)
 
 
 @dataclass

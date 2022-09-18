@@ -4,7 +4,7 @@ from pathlib import Path
 import h5py
 
 import torch
-from torch_geometric.data import InMemoryDataset, download_url, Data
+from torch_geometric.data import InMemoryDataset, download_url, Data, Batch
 from torch_geometric.utils import add_self_loops, degree
 from torch_geometric.transforms import ToUndirected, KNNGraph
 import matplotlib.tri as tri
@@ -21,28 +21,29 @@ class GraphConstructor(ABC):
 
     def read_hdf5(self, path: Path):
         with h5py.File(path, "r") as f:
-            cells = f["predictions"]
-            embeddings = f["embeddings"]
-            coords = f["coords"]
-            confidence = f["confidence"]
+            # The [()] loads the data set into memory so that we can close the file
+            # and still access it.
+            cells = f["predictions"][()]
+            embeddings = f["embeddings"][()]
+            coords = f["coords"][()]
+            confidence = f["confidence"][()]
         return cells, embeddings, coords, confidence
 
 
 class DefaultGraphConstructor(GraphConstructor):
-    def __init__(self, root):
-        self.root = root
+    def __init__(self, raw_dir):
+        self.raw_dir = raw_dir
 
     def construct(self, data_file, gt_file) -> Data:
+
         # Get cell data from hdf5 datasets
-        cells, embeddings, coords, confidence = self.read_hdf5(self.root / data_file)
+        cells, embeddings, coords, confidence = self.read_hdf5(self.raw_dir / data_file)
         cells, embeddings, coords, confidence = self._sort_cell_data(
             cells, embeddings, coords, confidence
         )
-
         # Get groundtruth data from tsv file
-        groundtruth_df = pd.read_csv(self.root / gt_file, sep="\t")
+        groundtruth_df = pd.read_csv(self.raw_dir / gt_file, sep="\t")
         xs, ys, groundtruth = self._sort_groundtruth(groundtruth_df)
-
         # Create graph
         data = Data(
             x=torch.Tensor(embeddings), pos=torch.Tensor(coords.astype("int32"))
@@ -50,7 +51,10 @@ class DefaultGraphConstructor(GraphConstructor):
         data = self._build_edges(data)
         data.y = torch.Tensor(groundtruth).type(torch.LongTensor)
         data = self._finalise_graph_properties(data)
+        return data
 
+    def node_splits(self, data, val_file, test_file):
+        data = self._create_data_splits(data, val_file, test_file)
         return data
 
     def _sort_cell_data(self, cells, embeddings, coords, confidence):
@@ -95,14 +99,12 @@ class DefaultGraphConstructor(GraphConstructor):
         if data.x.ndim == 1:
             data.x = data.x.view(-1, 1)
         data = ToUndirected()(data)
-        data.edge_index, data.edge_attr = add_self_loops(
-            data["edge_index"], data["edge_attr"], fill_value="mean"
-        )
+        data.edge_index, data.edge_attr = add_self_loops(data["edge_index"])
         row, col = data.edge_index
         data.edge_weight = 1.0 / degree(col, data.num_nodes)[col]
         return data
 
-    def _create_data_splits(self, data, groundtruth, val_file, test_file):
+    def _create_data_splits(self, data, val_file, test_file):
         all_xs = data["pos"][:, 0]
         all_ys = data["pos"][:, 1]
 
@@ -110,37 +112,39 @@ class DefaultGraphConstructor(GraphConstructor):
         train_mask = torch.ones(data.num_nodes, dtype=torch.bool)
 
         # Mask unlabelled data to ignore during training
-        unlabelled_inds = (groundtruth == 0).nonzero()[0]
+        unlabelled_inds = (data.y == 0).nonzero()[0]
         unlabelled_mask = torch.zeros(data.num_nodes, dtype=torch.bool)
         unlabelled_mask[unlabelled_inds] = True
         data.unlabelled_mask = unlabelled_mask
         train_mask[unlabelled_inds] = False
 
         # Mask validation nodes
-        val_node_inds = []
-        patches_df = pd.read_csv(val_file)
-        for row in patches_df.itertuples(index=False):
-            val_node_inds.extend(
-                get_nodes_within_tiles(
-                    (row.x, row.y), row.width, row.height, all_xs, all_ys
-                )
-            )
         val_mask = torch.zeros(data.num_nodes, dtype=torch.bool)
-        val_mask[val_node_inds] = True
-        train_mask[val_node_inds] = False
+        if val_file is not None:
+            val_node_inds = []
+            patches_df = pd.read_csv(val_file)
+            for row in patches_df.itertuples(index=False):
+                val_node_inds.extend(
+                    get_nodes_within_tiles(
+                        (row.x, row.y), row.width, row.height, all_xs, all_ys
+                    )
+                )
+            val_mask[val_node_inds] = True
+            train_mask[val_node_inds] = False
 
         # Mask test nodes
-        test_node_inds = []
-        patches_df = pd.read_csv(test_file)
-        for row in patches_df.itertuples(index=False):
-            test_node_inds.extend(
-                get_nodes_within_tiles(
-                    (row.x, row.y), row.width, row.height, all_xs, all_ys
-                )
-            )
         test_mask = torch.zeros(data.num_nodes, dtype=torch.bool)
-        test_mask[test_node_inds] = True
-        train_mask[test_node_inds] = False
+        if test_file is not None:
+            test_node_inds = []
+            patches_df = pd.read_csv(test_file)
+            for row in patches_df.itertuples(index=False):
+                test_node_inds.extend(
+                    get_nodes_within_tiles(
+                        (row.x, row.y), row.width, row.height, all_xs, all_ys
+                    )
+                )
+            test_mask[test_node_inds] = True
+            train_mask[test_node_inds] = False
 
         data.train_mask = train_mask
         data.val_mask = val_mask
@@ -168,9 +172,6 @@ def get_nodes_within_tiles(tile_coords, tile_width, tile_height, all_xs, all_ys)
     return mask.nonzero()[0].tolist()
 
 
-
-
-
 class Placenta(InMemoryDataset):
     def __init__(
         self,
@@ -178,16 +179,27 @@ class Placenta(InMemoryDataset):
         transform=None,
         pre_transform=None,
         pre_filter=None,
-        graph_constructor: GraphConstructor = DefaultGraphConstructor,
+        graph_constructor: GraphConstructor = None,
     ):
+        self._graph_constructor = graph_constructor
         super().__init__(root, transform, pre_transform, pre_filter)
-        self.graph_constructor = graph_constructor
-        if graph_constructor is None:
-            self.graph_constructor = DefaultGraphConstructor(Path(root))
+
+    @property
+    def graph_constructor(self):
+        if self._graph_constructor is None:
+            self._graph_constructor = DefaultGraphConstructor(Path(self.raw_dir))
+        return self._graph_constructor
 
     @property
     def raw_file_names(self):
-        return [("wsi_1.hdf5", "wsi_1.tsv"), ("wsi_2.hdf5", "wsi_2.tsv")]
+        return [
+            "wsi_1.hdf5",
+            "wsi_1.tsv",
+            "wsi_2.hdf5",
+            "wsi_2.tsv",
+            "val_patches.csv",
+            "test_patches.csv",
+        ]
 
     @property
     def processed_file_names(self):
@@ -199,14 +211,27 @@ class Placenta(InMemoryDataset):
         # path = download_url(url, self.raw_dir)
 
     def process(self):
-        for i, (data_path, gt_path) in enumerate(self.raw_paths):
-            data = self.graph_constructor.construct(data_path, gt_path)
+        val_path = Path(self.raw_dir) / self.raw_file_names[-2]
+        test_path = Path(self.raw_dir) / self.raw_file_names[-1]
 
-            torch.save(data, osp.join(self.processed_dir, f"wsi_{i}.pt"))
+        wsi_1_data = self.raw_file_names[0]
+        wsi_1_gt = self.raw_file_names[1]
+        wsi_2_data = self.raw_file_names[2]
+        wsi_2_gt = self.raw_file_names[3]
+
+        data = self.graph_constructor.construct(wsi_1_data, wsi_1_gt)
+        data = self.graph_constructor.node_splits(data, val_path, test_path)
+        torch.save(data, osp.join(self.processed_dir, "wsi_1.pt"))
+
+        data = self.graph_constructor.construct(wsi_2_data, wsi_2_gt)
+        data = self.graph_constructor.node_splits(data, None, None)
+        torch.save(data, osp.join(self.processed_dir, "wsi_2.pt"))
 
     def len(self):
         return len(self.processed_file_names)
 
     def get(self, idx):
-        data = torch.load(osp.join(self.processed_dir, f"wsi_{idx}.pt"))
+        wsi_1_data = torch.load(osp.join(self.processed_dir, "wsi_1.pt"))
+        wsi_2_data = torch.load(osp.join(self.processed_dir, "wsi_2.pt"))
+        data = Batch.from_data_list([wsi_1_data, wsi_2_data])
         return data
