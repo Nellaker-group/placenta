@@ -28,7 +28,7 @@ def main(
     learning_rate: float = 0.001,
     weighted_loss: bool = True,
     use_custom_weights: bool = True,
-    validation_step: int = 25,
+    validation_step: int = 100,
     verbose: bool = True,
 ):
     """

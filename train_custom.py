@@ -39,7 +39,7 @@ def main(
     groundtruth_tsvs: List[str] = typer.Option([]),
     val_patch_files: Optional[List[str]] = [],
     test_patch_files: Optional[List[str]] = [],
-    validation_step: int = 25,
+    validation_step: int = 100,
     verbose: bool = True,
 ):
     """
@@ -79,10 +79,10 @@ def main(
     pretrained_path = project_dir / pretrained if pretrained else None
 
     val_patch_files = [
-        project_dir / "datasets" / "splits" / file for file in "val_patches.csv"
+        project_dir / "datasets" / "splits" / file for file in val_patch_files
     ]
     test_patch_files = [
-        project_dir / "datasets" / "splits" / file for file in "test_patches.csv"
+        project_dir / "datasets" / "splits" / file for file in test_patch_files
     ]
 
     # Setup recording of stats per batch and epoch

@@ -92,7 +92,7 @@ class TrainRunner:
                 self._model = torch.load(self.params.pretrained)
             else:
                 self._model = self.setup_model()
-
+        self._model = self._model.to(self.params.device)
         return self._model
 
     @property

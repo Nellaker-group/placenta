@@ -41,10 +41,6 @@ class DefaultGraphConstructor(GraphConstructor):
 
         # Get groundtruth data from tsv file
         groundtruth_df = pd.read_csv(self.root / gt_file, sep="\t")
-        groundtruth_df["class"] = groundtruth_df["class"].map(
-            self._get_tissue_label_mapping()
-        )
-        # TODO: remake tsvs with class labels not names and remove the mapping
         xs, ys, groundtruth = self._sort_groundtruth(groundtruth_df)
 
         # Create graph
@@ -106,8 +102,50 @@ class DefaultGraphConstructor(GraphConstructor):
         data.edge_weight = 1.0 / degree(col, data.num_nodes)[col]
         return data
 
-    def _create_data_splits(self):
-        pass
+    def _create_data_splits(self, data, groundtruth, val_file, test_file):
+        all_xs = data["pos"][:, 0]
+        all_ys = data["pos"][:, 1]
+
+        # Mark everything as training data first
+        train_mask = torch.ones(data.num_nodes, dtype=torch.bool)
+
+        # Mask unlabelled data to ignore during training
+        unlabelled_inds = (groundtruth == 0).nonzero()[0]
+        unlabelled_mask = torch.zeros(data.num_nodes, dtype=torch.bool)
+        unlabelled_mask[unlabelled_inds] = True
+        data.unlabelled_mask = unlabelled_mask
+        train_mask[unlabelled_inds] = False
+
+        # Mask validation nodes
+        val_node_inds = []
+        patches_df = pd.read_csv(val_file)
+        for row in patches_df.itertuples(index=False):
+            val_node_inds.extend(
+                get_nodes_within_tiles(
+                    (row.x, row.y), row.width, row.height, all_xs, all_ys
+                )
+            )
+        val_mask = torch.zeros(data.num_nodes, dtype=torch.bool)
+        val_mask[val_node_inds] = True
+        train_mask[val_node_inds] = False
+
+        # Mask test nodes
+        test_node_inds = []
+        patches_df = pd.read_csv(test_file)
+        for row in patches_df.itertuples(index=False):
+            test_node_inds.extend(
+                get_nodes_within_tiles(
+                    (row.x, row.y), row.width, row.height, all_xs, all_ys
+                )
+            )
+        test_mask = torch.zeros(data.num_nodes, dtype=torch.bool)
+        test_mask[test_node_inds] = True
+        train_mask[test_node_inds] = False
+
+        data.train_mask = train_mask
+        data.val_mask = val_mask
+        data.test_mask = test_mask
+        return data
 
 
 # class DelaunyGraphConstructor(GraphConstructor):
@@ -118,6 +156,19 @@ class DefaultGraphConstructor(GraphConstructor):
 # class KNNGraphConstructor(GraphConstructor):
 #     def construct(self, foo: int, bar: str) -> Data:
 #         self.read_hdf5()
+
+
+def get_nodes_within_tiles(tile_coords, tile_width, tile_height, all_xs, all_ys):
+    tile_min_x, tile_min_y = tile_coords[0], tile_coords[1]
+    tile_max_x, tile_max_y = tile_min_x + tile_width, tile_min_y + tile_height
+    mask = np.logical_and(
+        (np.logical_and(all_xs > tile_min_x, (all_ys > tile_min_y))),
+        (np.logical_and(all_xs < tile_max_x, (all_ys < tile_max_y))),
+    )
+    return mask.nonzero()[0].tolist()
+
+
+
 
 
 class Placenta(InMemoryDataset):
