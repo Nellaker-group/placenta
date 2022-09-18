@@ -35,7 +35,6 @@ class DefaultGraphConstructor(GraphConstructor):
         self.raw_dir = raw_dir
 
     def construct(self, data_file, gt_file) -> Data:
-
         # Get cell data from hdf5 datasets
         cells, embeddings, coords, confidence = self.read_hdf5(self.raw_dir / data_file)
         cells, embeddings, coords, confidence = self._sort_cell_data(
@@ -112,7 +111,7 @@ class DefaultGraphConstructor(GraphConstructor):
         train_mask = torch.ones(data.num_nodes, dtype=torch.bool)
 
         # Mask unlabelled data to ignore during training
-        unlabelled_inds = (data.y == 0).nonzero()[0]
+        unlabelled_inds = (data.y == 0).nonzero()[:,0]
         unlabelled_mask = torch.zeros(data.num_nodes, dtype=torch.bool)
         unlabelled_mask[unlabelled_inds] = True
         data.unlabelled_mask = unlabelled_mask
@@ -169,7 +168,7 @@ def get_nodes_within_tiles(tile_coords, tile_width, tile_height, all_xs, all_ys)
         (np.logical_and(all_xs > tile_min_x, (all_ys > tile_min_y))),
         (np.logical_and(all_xs < tile_max_x, (all_ys < tile_max_y))),
     )
-    return mask.nonzero()[0].tolist()
+    return mask.nonzero()[:, 0].tolist()
 
 
 class Placenta(InMemoryDataset):
