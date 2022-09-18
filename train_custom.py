@@ -9,7 +9,7 @@ from placenta.logger.logger import Logger
 from placenta.utils.utils import setup_run, get_device
 from placenta.graphs.enums import FeatureArg, MethodArg, ModelsArg
 from placenta.graphs.graph_supervised import setup_node_splits, collect_params
-from placenta.runners.train_runner import RunParams, TrainRunner
+from placenta.runners.train_runner import TrainParams, TrainRunner
 from placenta.data.process_data import get_data
 from placenta.utils.utils import send_graph_to_device, set_seed, get_project_dir
 
@@ -44,33 +44,31 @@ def main(
 ):
     """
     Train a model on the placenta dataset using a custom cell graph construction.
-    :param seed:
-    :param exp_name:
-    :param wsi_ids:
-    :param x_min:
-    :param y_min:
-    :param width:
-    :param height:
-    :param k:
-    :param feature:
-    :param pretrained:
-    :param model_type:
-    :param graph_method:
-    :param batch_size:
-    :param num_neighbours:
-    :param epochs:
-    :param layers:
-    :param hidden_units:
-    :param dropout:
-    :param learning_rate:
-    :param weighted_loss:
-    :param use_custom_weights:
-    :param groundtruth_tsvs:
-    :param val_patch_files:
-    :param test_patch_files:
-    :param validation_step:
-    :param verbose:
-    :return:
+    :param seed: set the random seed
+    :param exp_name: name of the experiment (used for saving the model)
+    :param wsi_ids: list of WSI ids to use for training
+    :param x_min: x coordinate of the top left corner of the region to use in both WSIs
+    :param y_min: y coordinate of the top left corner of the region to use in both WSIs
+    :param width: width of the region to use in both WSIs (-1 for full width)
+    :param height: height of the region to use in both WSIs (-1 for full height)
+    :param k: number of neighbours per edge for knn and intersection graphs
+    :param feature: node features, either embeddings vectors or one hot cell types
+    :param pretrained: path to a pretrained model
+    :param model_type: type of model to train, one of ModelsArg
+    :param batch_size: batch size
+    :param num_neighbours: neighbours per hop or cluster size or sample coverage
+    :param epochs: max number of epochs to train for
+    :param layers: number of model layers (and usually hops)
+    :param hidden_units: number of hidden units per layer
+    :param dropout: dropout rate on each layer and attention heads
+    :param learning_rate: learning rate
+    :param weighted_loss: whether to used weighted cross entropy
+    :param use_custom_weights: whether to use custom weights for the loss
+    :param groundtruth_tsvs: list groundtruth tsv file names, order matches wsi_ids
+    :param val_patch_files: list of validation patch files
+    :param test_patch_files: list of test patch files
+    :param validation_step: number of steps between validation check
+    :param verbose: whether to print graph setup
     """
     organ = Placenta
     graph_method = graph_method.value
@@ -80,14 +78,12 @@ def main(
     project_dir = get_project_dir()
     pretrained_path = project_dir / pretrained if pretrained else None
 
-    if len(val_patch_files) > 0:
-        val_patch_files = [
-            project_dir / "splits_config" / file for file in val_patch_files
-        ]
-    if len(test_patch_files) > 0:
-        test_patch_files = [
-            project_dir / "splits_config" / file for file in test_patch_files
-        ]
+    val_patch_files = [
+        project_dir / "datasets" / "splits" / file for file in "val_patches.csv"
+    ]
+    test_patch_files = [
+        project_dir / "datasets" / "splits" / file for file in "test_patches.csv"
+    ]
 
     # Setup recording of stats per batch and epoch
     logger = Logger(
@@ -139,7 +135,7 @@ def main(
     send_graph_to_device(data, device)
 
     # Setup training parameters, including dataloaders and models
-    run_params = RunParams(
+    run_params = TrainParams(
         data,
         device,
         pretrained_path,

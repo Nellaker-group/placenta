@@ -28,6 +28,7 @@ from placenta.graphs.graph_supervised import (
     evaluate,
 )
 
+
 def main(
     exp_name: str = typer.Option(...),
     model_weights_dir: str = typer.Option(...),
@@ -50,7 +51,9 @@ def main(
     device = get_device()
     set_seed(0)
     project_dir = get_project_dir()
-    patch_files = [project_dir / "splits_config" / file for file in val_patch_files]
+    patch_files = [
+        project_dir / "datasets" / "splits" / file for file in val_patch_files
+    ]
 
     print("Begin graph construction...")
     predictions, embeddings, coords, confidence = get_raw_data(
@@ -85,12 +88,7 @@ def main(
 
     # Setup trained model
     pretrained_path = (
-        project_dir
-        / "results"
-        / model_type
-        / exp_name
-        / model_weights_dir
-        / model_name
+        project_dir / "results" / model_type / exp_name / model_weights_dir / model_name
     )
     model = torch.load(pretrained_path, map_location=device)
     model_epochs = (
@@ -154,9 +152,7 @@ def main(
     predicted_labels = predicted_labels[val_nodes]
     out = out[val_nodes]
     pos = pos[val_nodes]
-    groundtruth = (
-        groundtruth[val_nodes] if groundtruth_tsv is not None else groundtruth
-    )
+    groundtruth = groundtruth[val_nodes] if groundtruth_tsv is not None else groundtruth
 
     # Remove unlabelled (class 0) ground truth points
     if remove_unlabelled and groundtruth_tsv is not None:

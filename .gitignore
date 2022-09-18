@@ -194,7 +194,7 @@ out/
 **/raw_data
 **/visualisations
 **/results
-**/splits_config
+**/splits
 *.pth
 *.pt
 *.csv

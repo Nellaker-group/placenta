@@ -9,7 +9,7 @@ from placenta.logger.logger import Logger
 from placenta.utils.utils import setup_run, get_device
 from placenta.graphs.enums import ModelsArg
 from placenta.graphs.graph_supervised import setup_node_splits, collect_params
-from placenta.runners.train_runner import RunParams, TrainRunner
+from placenta.runners.train_runner import TrainParams, TrainRunner
 from placenta.data.process_data import get_data
 from placenta.utils.utils import send_graph_to_device, set_seed, get_project_dir
 
@@ -37,18 +37,17 @@ def main(
     :param exp_name: name of the experiment (used for saving the model)
     :param pretrained: path to a pretrained model
     :param model_type: type of model to train, one of ModelsArg
-    :param batch_size:
-    :param num_neighbours:
-    :param epochs:
-    :param layers:
-    :param hidden_units:
-    :param dropout:
-    :param learning_rate:
-    :param weighted_loss:
-    :param use_custom_weights:
-    :param validation_step:
-    :param verbose:
-    :return:
+    :param batch_size: batch size
+    :param num_neighbours: neighbours per hop or cluster size or sample coverage
+    :param epochs: max number of epochs to train for
+    :param layers: number of model layers (and usually hops)
+    :param hidden_units: number of hidden units per layer
+    :param dropout: dropout rate on each layer and attention heads
+    :param learning_rate: learning rate
+    :param weighted_loss: whether to used weighted cross entropy
+    :param use_custom_weights: whether to use custom weights for the loss
+    :param validation_step: number of steps between validation check
+    :param verbose: whether to print graph setup
     """
 
     organ = Placenta
@@ -58,10 +57,10 @@ def main(
     pretrained_path = project_dir / pretrained if pretrained else None
 
     val_patch_files = [
-        project_dir / "splits_config" / file for file in "val_patches.csv"
+        project_dir / "datasets" / "splits" / file for file in "val_patches.csv"
     ]
     test_patch_files = [
-        project_dir / "splits_config" / file for file in "test_patches.csv"
+        project_dir / "datasets" / "splits" / file for file in "test_patches.csv"
     ]
 
     # Setup recording of stats per batch and epoch
@@ -111,7 +110,7 @@ def main(
     send_graph_to_device(data, device)
 
     # Setup training parameters, including dataloaders and models
-    run_params = RunParams(
+    run_params = TrainParams(
         data,
         device,
         pretrained_path,
@@ -131,6 +130,8 @@ def main(
 
     # Saves each run by its timestamp and record params for the run
     run_path = setup_run(project_dir, f"{model_type}/{exp_name}")
+
+    # TODO: change this to saving graph params and train params separately
     params = collect_params(
         seed,
         exp_name,

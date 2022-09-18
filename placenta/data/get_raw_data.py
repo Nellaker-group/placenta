@@ -14,12 +14,12 @@ def get_groundtruth_patch(
     if not groundtruth_tsv:
         print("No tissue label tsv supplied")
         return None, None, None
-    groundtruh_path = project_dir / "annotations" / groundtruth_tsv
-    if not os.path.exists(str(groundtruh_path)):
+    groundtruth_path = project_dir / "datasets" / "raw" / groundtruth_tsv
+    if not os.path.exists(str(groundtruth_path)):
         print("No tissue label tsv found")
         return None, None, None
 
-    groundtruth_df = pd.read_csv(groundtruh_path, sep="\t")
+    groundtruth_df = pd.read_csv(groundtruth_path, sep="\t")
     xs = groundtruth_df["px"].to_numpy()
     ys = groundtruth_df["py"].to_numpy()
     groundtruth = groundtruth_df["class"].to_numpy()
@@ -51,7 +51,7 @@ def get_raw_data(wsi_id, x_min, y_min, width, height, verbose=True):
     raw_data_path = (
         Path(__file__).absolute().parent.parent.parent
         / "datasets"
-        / "raw_data"
+        / "raw"
         / f"wsi_{wsi_id}.hdf5"
     )
     if verbose:

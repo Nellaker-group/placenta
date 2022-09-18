@@ -1,6 +1,7 @@
 import copy
-from dataclasses import dataclass
+from dataclasses import dataclass, asdict
 from typing import Optional
+import json
 
 import numpy as np
 import torch
@@ -29,7 +30,7 @@ from placenta.graphs.enums import ModelsArg
 
 
 @dataclass
-class RunParams:
+class TrainParams:
     data: Data
     device: str
     pretrained: Optional[str]
@@ -45,6 +46,10 @@ class RunParams:
     custom_weights: bool
     organ: Organ
 
+    def save(self, run_path):
+        with open(run_path / "train_params.csv", 'w') as f:
+            json.dump(asdict(self), f, indent=2)
+
 
 @dataclass
 class BatchResult:
@@ -54,8 +59,8 @@ class BatchResult:
 
 
 class TrainRunner:
-    def __init__(self, params: RunParams):
-        self.params: RunParams = params
+    def __init__(self, params: TrainParams):
+        self.params: TrainParams = params
         self._model: Optional[nn.Module] = None
         self._train_loader: Optional[DataLoader] = None
         self._val_loader: Optional[DataLoader] = None
@@ -64,7 +69,7 @@ class TrainRunner:
         self.num_classes = len(self.params.organ.tissues)
 
     @staticmethod
-    def new(params: RunParams) -> "TrainRunner":
+    def new(params: TrainParams) -> "TrainRunner":
         cls = {
             ModelsArg.graphsage: GraphSAGERunner,
             ModelsArg.clustergcn: ClusterGCNRunner,
@@ -186,7 +191,7 @@ class GraphSAGERunner(TrainRunner):
             ],
             batch_size=self.params.batch_size,
             shuffle=True,
-            num_workers=0,
+            num_workers=12,
         )
         val_loader = NeighborLoader(
             copy.copy(self.params.data),
@@ -248,14 +253,14 @@ class ClusterGCNRunner(TrainRunner):
             cluster_data,
             batch_size=self.params.batch_size,
             shuffle=True,
-            num_workers=0,
+            num_workers=12,
         )
         val_loader = NeighborSampler(
             self.params.data.edge_index,
             sizes=[-1],
             batch_size=1024,
             shuffle=False,
-            num_workers=0,
+            num_workers=12,
         )
         return train_loader, val_loader
 
@@ -325,14 +330,14 @@ class GraphSAINTRunner(TrainRunner):
             num_steps=30,
             sample_coverage=self.params.num_neighbours,
             shuffle=True,
-            num_workers=0,
+            num_workers=12,
         )
         val_loader = NeighborSampler(
             self.params.data.edge_index,
             sizes=[-1],
             batch_size=1024,
             shuffle=False,
-            num_workers=0,
+            num_workers=12,
         )
         return train_loader, val_loader
 
@@ -400,7 +405,7 @@ class ShaDowRunner(TrainRunner):
             num_neighbors=self.params.num_neighbours,
             node_idx=self.params.data.train_mask,
             batch_size=self.params.batch_size,
-            num_workers=0,
+            num_workers=12,
         )
         val_loader = ShaDowKHopSampler(
             self.params.data,
@@ -408,7 +413,7 @@ class ShaDowRunner(TrainRunner):
             num_neighbors=self.params.num_neighbours,
             node_idx=None,
             batch_size=self.params.batch_size,
-            num_workers=0,
+            num_workers=12,
             shuffle=False,
         )
         return train_loader, val_loader
@@ -470,7 +475,7 @@ class SIGNRunner(TrainRunner):
         train_idx = self.params.data.train_mask.nonzero(as_tuple=False).view(-1)
         val_idx = self.params.data.val_mask.nonzero(as_tuple=False).view(-1)
         train_loader = DataLoader(
-            train_idx, batch_size=self.params.batch_size, shuffle=True, num_workers=0
+            train_idx, batch_size=self.params.batch_size, shuffle=True, num_workers=12
         )
         val_loader = DataLoader(
             val_idx, batch_size=self.params.batch_size, shuffle=False
@@ -554,7 +559,7 @@ class MLPRunner(TrainRunner):
         train_idx = self.params.data.train_mask.nonzero(as_tuple=False).view(-1)
         val_idx = self.params.data.val_mask.nonzero(as_tuple=False).view(-1)
         train_loader = DataLoader(
-            train_idx, batch_size=self.params.batch_size, shuffle=True, num_workers=0
+            train_idx, batch_size=self.params.batch_size, shuffle=True, num_workers=12
         )
         val_loader = DataLoader(
             val_idx, batch_size=self.params.batch_size, shuffle=False
