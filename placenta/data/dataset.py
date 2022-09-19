@@ -141,7 +141,7 @@ class DefaultGraphConstructor(GraphConstructor):
                 val_node_inds.extend(
                     get_nodes_within_tiles(
                         (row.x, row.y), row.width, row.height, all_xs, all_ys
-                    )
+                    ).tolist()
                 )
             val_mask[val_node_inds] = True
             train_mask[val_node_inds] = False
@@ -155,7 +155,7 @@ class DefaultGraphConstructor(GraphConstructor):
                 test_node_inds.extend(
                     get_nodes_within_tiles(
                         (row.x, row.y), row.width, row.height, all_xs, all_ys
-                    )
+                    ).tolist()
                 )
             test_mask[test_node_inds] = True
             train_mask[test_node_inds] = False
@@ -183,7 +183,7 @@ def get_nodes_within_tiles(tile_coords, tile_width, tile_height, all_xs, all_ys)
         (np.logical_and(all_xs > tile_min_x, (all_ys > tile_min_y))),
         (np.logical_and(all_xs < tile_max_x, (all_ys < tile_max_y))),
     )
-    return mask.nonzero()[:, 0].tolist()
+    return mask.nonzero()[:, 0]
 
 
 class Placenta(InMemoryDataset):

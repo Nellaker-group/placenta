@@ -47,7 +47,6 @@ def main(
     :param verbose: whether to print graph setup
     """
 
-    # organ = organs.Placenta
     device = get_device()
     set_seed(seed)
     project_dir = get_project_dir()

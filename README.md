@@ -91,18 +91,18 @@ using the validation sampling alogrithm for that model type.
 python train.py --exp-name graphsage_train --model-type graphsage --batch-size 32000 --num-neighbours 10 --layers 12
 ```
 
-## Inference
+## Evaluation and Inference
 
-Models can be evaluated on the test set using `inference.py`. This will use the 
-default graph construction for WSI 1, of which the test set is defined. Along with
-performance metrics, this fill will generate confusion matrix and precision-recall 
+Models can be evaluated on the test or validation set using `eval.py`. This will use the 
+default graph construction for WSI 1, of which the these sets are defined. Along with
+performance metrics, this will generate confusion matrix and precision-recall 
 plots to see performance across classes.
 
 ```bash
-python inference.py
+python eval.py --exp-name graphsage_train --run-time-stamp 2022-09-20T16-00-53 --model-type graphsage --use-test-set
 ```
 
-You may also use `inference.py` to performance inference across an entire WSI. This
+You may use `inference.py` to performance inference across an area of a WSI. This
 will save a tsv of predictions per coordinate and produce a png to visualise these 
 predictions.
 
@@ -112,7 +112,7 @@ python inference.py
 
 ## Experiments
 
-Performance on test data of existing scalable architectures:
+Performance on test data using existing scalable architectures:
 
 | Model Architecture | Accuracy   | Top 2 Accuracy | ROC AUC     |
 |--------------------|------------|----------------|-------------|
@@ -135,6 +135,6 @@ python train.py --exp-name clustergcn_train --model-type clustergcn --batch-size
 python train.py --exp-name graphsaint_train --model-type graphsaint --batch-size 32000 --num-neighbours 500
 python train.py --exp-name sign_train --model-type sign --batch-size 51200 --num-neighbours 10
 python train.py --exp-name shadow_train --model-type shadow --batch-size 4000 --num-neighbours 5 --layers 8
-python train.py --exp-name gat_train --model-type gat --batch-size 200 --num-neighbours 400 --layers 2
-python train.py --exp-name gatv2_train --model-type gatv2 --batch-size 200 --num-neighbours 400 --layers 2
+python train.py --exp-name gat_train --model-type gat --batch-size 200 --num-neighbours 400 --layers 2 --dropout 0.25
+python train.py --exp-name gatv2_train --model-type gatv2 --batch-size 200 --num-neighbours 400 --layers 2 --dropout 0.25
 ```

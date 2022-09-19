@@ -8,13 +8,18 @@ from sklearn.metrics import (
     confusion_matrix,
     precision_recall_curve,
     average_precision_score,
+    accuracy_score,
+    balanced_accuracy_score,
+    top_k_accuracy_score,
+    f1_score,
+    roc_auc_score,
 )
 
 
 def plot_confusion_matrix(cm, dataset_name, run_path, fmt="d"):
     save_path = run_path / f"{dataset_name}_confusion_matrix.png"
 
-    plt.rcParams["figure.dpi"] = 600
+    plt.rcParams["figure.dpi"] = 300
     sns.heatmap(cm, annot=True, cmap="Blues", square=True, cbar=False, fmt=fmt)
     plt.ylabel("True Label")
     plt.xlabel("Predicted Label")
@@ -25,7 +30,7 @@ def plot_confusion_matrix(cm, dataset_name, run_path, fmt="d"):
 
 def plot_tissue_pr_curves(id_to_label, colours, ground_truth, preds, scores, save_path):
     unique_values_in_pred = set(preds)
-    unique_values_in_truth = set(ground_truth)
+    unique_values_in_truth = set(np.array(ground_truth))
     unique_values_in_both = list(unique_values_in_pred.union(unique_values_in_truth))
 
     ground_truth = label_binarize(ground_truth, classes=unique_values_in_both)
@@ -47,7 +52,7 @@ def plot_tissue_pr_curves(id_to_label, colours, ground_truth, preds, scores, sav
         )
     plt.clf()
     sns.set(style="white")
-    plt.figure(figsize=(9, 6), dpi=600)
+    plt.figure(figsize=(9, 6), dpi=300)
     ax = plt.subplot(111)
     for i in unique_values_in_truth:
         plt.plot(
@@ -72,7 +77,7 @@ def get_tissue_confusion_matrix(organ, pred, truth, proportion_label=False):
     tissue_labels = [tissue.label for tissue in organ.tissues]
 
     unique_values_in_pred = set(pred)
-    unique_values_in_truth = set(truth)
+    unique_values_in_truth = set(np.array(truth))
     unique_values_in_matrix = unique_values_in_pred.union(unique_values_in_truth)
     missing_tissue_ids = list(tissue_ids - unique_values_in_matrix)
     missing_tissue_ids.sort()
@@ -118,3 +123,58 @@ def get_tissue_confusion_matrix(organ, pred, truth, proportion_label=False):
         cm_df_props.set_index(row_labels, drop=True, inplace=True)
 
     return cm_df, cm_df_props
+
+
+def evaluate(groundtruth, predicted_labels, out, organ, run_path):
+    tissue_ids = [tissue.id for tissue in organ.tissues]
+    tissue_ids = tissue_ids[1:]
+
+    accuracy = accuracy_score(groundtruth, predicted_labels)
+    balanced_accuracy = balanced_accuracy_score(groundtruth, predicted_labels)
+    top_2_accuracy = top_k_accuracy_score(groundtruth, out, k=2, labels=tissue_ids)
+    f1_macro = f1_score(groundtruth, predicted_labels, average="macro")
+    roc_auc = roc_auc_score(
+        groundtruth,
+        softmax(out, axis=-1),
+        average="macro",
+        multi_class="ovo",
+        labels=tissue_ids,
+    )
+    weighted_roc_auc = roc_auc_score(
+        groundtruth,
+        softmax(out, axis=-1),
+        average="weighted",
+        multi_class="ovo",
+        labels=tissue_ids,
+    )
+    print("-----------------------")
+    print(f"Accuracy: {accuracy:.6f}")
+    print(f"Top 2 accuracy: {top_2_accuracy:.6f}")
+    print(f"Balanced accuracy: {balanced_accuracy:.6f}")
+    print(f"F1 macro score: {f1_macro:.6f}")
+    print(f"ROC AUC macro: {roc_auc:.6f}")
+    print(f"Weighted ROC AUC macro: {weighted_roc_auc:.6f}")
+    print("-----------------------")
+
+    print("Plotting confusion matrices")
+    cm_df, cm_df_props = get_tissue_confusion_matrix(
+        organ, predicted_labels, groundtruth, proportion_label=True
+    )
+    plt.figure(figsize=(10, 8))
+    sns.set(font_scale=1.1)
+    plot_confusion_matrix(cm_df, "All Tissues", run_path, "d")
+    plt.figure(figsize=(10, 8))
+    sns.set(font_scale=1.1)
+    plot_confusion_matrix(cm_df_props, "All Tissues Proportion", run_path, ".2f")
+
+    print("Plotting pr curves")
+    tissue_mapping = {tissue.id: tissue.label for tissue in organ.tissues}
+    tissue_colours = {tissue.id: tissue.colour for tissue in organ.tissues}
+    plot_tissue_pr_curves(
+        tissue_mapping,
+        tissue_colours,
+        groundtruth,
+        predicted_labels,
+        out,
+        run_path / "pr_curves.png",
+    )

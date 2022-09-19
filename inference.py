@@ -2,14 +2,14 @@ from pathlib import Path
 
 import typer
 import numpy as np
+import pandas as pd
 
 from placenta.utils.utils import get_device
 from placenta.organs.organs import Placenta as organ
 from placenta.utils.utils import set_seed, get_project_dir
-from placenta.analysis.vis_graph_patch import visualize_points
-from placenta.data.dataset import Placenta
-from placenta.eval.eval import evaluate
 from placenta.graphs.enums import ModelsArg
+from placenta.analysis.vis_graph_patch import visualize_points
+from placenta.data.dataset import Placenta, get_nodes_within_tiles
 from placenta.runners.eval_runner import EvalParams, EvalRunner
 
 
@@ -18,15 +18,27 @@ def main(
     run_time_stamp: str = typer.Option(...),
     model_name: str = typer.Option(...),
     model_type: ModelsArg = typer.Option(...),
-    use_test_set: bool = False,
+    wsi_id: int = typer.Option(...),
+    x_min: int = 0,
+    y_min: int = 0,
+    width: int = -1,
+    height: int = -1,
+    remove_unlabelled: bool = False,
 ):
     device = get_device()
     set_seed(0)
     project_dir = get_project_dir()
 
-    # Load graph of WSI 1
+    # Download, process, and load graph
     dataset = Placenta(project_dir / "datasets")
-    data = dataset[0].get_example(0)
+    data = dataset[0].get_example(wsi_id - 1)
+
+    # filter the graph using the patch coordinates
+    if x_min != 0 or y_min != 0 or width != -1 or height != -1:
+        mask = get_nodes_within_tiles(
+            (x_min, y_min), width, height, data.pos[:, 0], data.pos[:, 1]
+        )
+        data = data.subgraph(mask)
 
     pretrained_path = (
         project_dir
@@ -42,17 +54,12 @@ def main(
     # Run inference and get predicted labels for nodes
     out, embeddings, predicted_labels = eval_runner.inference()
 
-    # restrict to only data in patch_files using val_mask
-    mask = data.val_mask if not use_test_set else data.test_mask
-    predicted_labels = predicted_labels[mask]
-    out = out[mask]
-    pos = data.pos[mask]
-    groundtruth = data.y[mask]
-
+    pos = data.pos
     # Remove unlabelled (class 0) ground truth points
-    groundtruth, predicted_labels, pos, out = _remove_unlabelled(
-        groundtruth, predicted_labels, pos, out
-    )
+    if remove_unlabelled:
+        predicted_labels, pos, out = _remove_unlabelled(
+            data.y, predicted_labels, pos, out
+        )
 
     # Setup paths
     model_epochs = (
@@ -62,10 +69,6 @@ def main(
     )
     save_path = Path(*pretrained_path.parts[:-1]) / "eval" / model_epochs
     save_path.mkdir(parents=True, exist_ok=True)
-    plot_name = "test_patch.png" if use_test_set else "val_patch.png"
-
-    # Evaluate against ground truth tissue annotations
-    evaluate(groundtruth, predicted_labels, out, organ, save_path)
 
     # Visualise predictions on graph patch
     print("Generating image")
@@ -73,22 +76,37 @@ def main(
     colours = [colours_dict[label] for label in predicted_labels]
     visualize_points(
         organ,
-        save_path / plot_name,
+        save_path / f"x{x_min}_y{y_min}_w{width}_h{height}.png",
         pos,
         colours=colours,
         width=int(data.pos[:, 0].max()) - int(data.pos[:, 0].min()),
         height=int(data.pos[:, 1].max()) - int(data.pos[:, 1].min()),
     )
 
+    # make tsv of predictions and coordinates
+    label_dict = {tissue.id: tissue.label for tissue in organ.tissues}
+    predicted_labels = [label_dict[label] for label in predicted_labels]
+    _save_tissue_preds_as_tsv(predicted_labels, pos, save_path)
+
 
 def _remove_unlabelled(groundtruth, predicted_labels, pos, out):
     labelled_inds = groundtruth.nonzero()[:, 0]
-    groundtruth = groundtruth[labelled_inds]
     pos = pos[labelled_inds]
     out = out[labelled_inds]
     out = np.delete(out, 0, axis=1)
     predicted_labels = predicted_labels[labelled_inds]
-    return groundtruth, predicted_labels, pos, out
+    return predicted_labels, pos, out
+
+
+def _save_tissue_preds_as_tsv(predicted_labels, coords, save_path):
+    tissue_preds_df = pd.DataFrame(
+        {
+            "x": coords[:, 0].numpy().astype(int),
+            "y": coords[:, 1].numpy().astype(int),
+            "class": predicted_labels,
+        }
+    )
+    tissue_preds_df.to_csv(save_path / "tissue_preds.tsv", sep="\t", index=False)
 
 
 if __name__ == "__main__":
