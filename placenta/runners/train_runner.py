@@ -46,12 +46,14 @@ class TrainParams:
     custom_weights: bool
     organ: Organ
 
-    def save(self, run_path):
+    def save(self, seed, exp_name, run_path):
         to_save = {
             k: v
             for k, v in asdict(self).items()
             if k not in ("data", "organ")
         }
+        to_save['seed'] = seed
+        to_save['exp_name'] = exp_name
         with open(run_path / "train_params.csv", "w") as f:
             json.dump(to_save, f, indent=2)
 

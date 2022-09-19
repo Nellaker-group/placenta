@@ -2,6 +2,7 @@ from abc import ABC, abstractmethod
 import os.path as osp
 from pathlib import Path
 import h5py
+import json
 
 import torch
 from torch_geometric.data import InMemoryDataset, download_url, Data, Batch
@@ -19,6 +20,10 @@ class GraphConstructor(ABC):
     def construct(self, data_file: str, gt_file: str) -> Data:
         pass
 
+    @abstractmethod
+    def save_params(self, run_path: Path):
+        pass
+
     def read_hdf5(self, path: Path):
         with h5py.File(path, "r") as f:
             # The [()] loads the data set into memory so that we can close the file
@@ -33,6 +38,18 @@ class GraphConstructor(ABC):
 class DefaultGraphConstructor(GraphConstructor):
     def __init__(self, raw_dir):
         self.raw_dir = raw_dir
+
+    def save_params(self, run_path):
+        params_dict = {
+            "wsi_ids": [1, 2],
+            "x_min": 0,
+            "y_min": 0,
+            "width": -1,
+            "height": -1,
+            "edge_method": "intersection",
+        }
+        with open(run_path / "graph_params.csv", "w") as f:
+            json.dump(params_dict, f, indent=2)
 
     def construct(self, data_file, gt_file) -> Data:
         # Get cell data from hdf5 datasets
@@ -94,11 +111,9 @@ class DefaultGraphConstructor(GraphConstructor):
         return data
 
     def _finalise_graph_properties(self, data):
-        # TODO: check if this step is needed for intersection graph
-        if data.x.ndim == 1:
-            data.x = data.x.view(-1, 1)
         data = ToUndirected()(data)
         data.edge_index, data.edge_attr = add_self_loops(data["edge_index"])
+        # in-node degree norm for graphSAINT
         row, col = data.edge_index
         data.edge_weight = 1.0 / degree(col, data.num_nodes)[col]
         return data
@@ -111,7 +126,7 @@ class DefaultGraphConstructor(GraphConstructor):
         train_mask = torch.ones(data.num_nodes, dtype=torch.bool)
 
         # Mask unlabelled data to ignore during training
-        unlabelled_inds = (data.y == 0).nonzero()[:,0]
+        unlabelled_inds = (data.y == 0).nonzero()[:, 0]
         unlabelled_mask = torch.zeros(data.num_nodes, dtype=torch.bool)
         unlabelled_mask[unlabelled_inds] = True
         data.unlabelled_mask = unlabelled_mask
@@ -151,13 +166,13 @@ class DefaultGraphConstructor(GraphConstructor):
         return data
 
 
-# class DelaunyGraphConstructor(GraphConstructor):
-#     def construct(self, foo: int, bar: str) -> Data:
+# class DelaunayGraphConstructor(GraphConstructor):
+#     def construct(self, data_file: str, gt_file: str) -> Data
 #         self.read_hdf5()
 #
-#
+
 # class KNNGraphConstructor(GraphConstructor):
-#     def construct(self, foo: int, bar: str) -> Data:
+#     def construct(self, data_file: str, gt_file: str) -> Data
 #         self.read_hdf5()
 
 
@@ -234,3 +249,6 @@ class Placenta(InMemoryDataset):
         wsi_2_data = torch.load(osp.join(self.processed_dir, "wsi_2.pt"))
         data = Batch.from_data_list([wsi_1_data, wsi_2_data])
         return data
+
+    def save_params(self, run_path):
+        self.graph_constructor.save_params(run_path)

@@ -6,7 +6,6 @@ from torch_geometric.transforms import SIGN
 from placenta.logger.logger import Logger
 from placenta.utils.utils import setup_run, get_device
 from placenta.graphs.enums import ModelsArg
-from placenta.graphs.graph_supervised import collect_params
 from placenta.runners.train_runner import TrainParams, TrainRunner
 from placenta.utils.utils import send_graph_to_device, set_seed, get_project_dir
 from placenta.organs.organs import Placenta as organ
@@ -60,7 +59,7 @@ def main(
     )
 
     # Download, process, and load graph
-    dataset =  Placenta(project_dir / "datasets")
+    dataset = Placenta(project_dir / "datasets")
     data = dataset[0]
 
     # Final data setup
@@ -91,23 +90,8 @@ def main(
 
     # Saves each run by its timestamp and record params for the run
     run_path = setup_run(project_dir, f"{model_type}/{exp_name}")
-
-    # TODO: change this to saving graph params and train params separately
-    params = collect_params(
-        seed,
-        exp_name,
-        [1, 2],
-        0,
-        0,
-        -1,
-        -1,
-        5,
-        "embeddings",
-        "intersection",
-        run_params,
-    )
-    params.to_csv(run_path / "params.csv", index=False)
-    train_runner.params.save(run_path)
+    dataset.save_params(run_path)
+    train_runner.params.save(seed, exp_name, run_path)
 
     # Train!
     try:
