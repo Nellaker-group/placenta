@@ -99,7 +99,7 @@ performance metrics, this will generate confusion matrix and precision-recall
 plots to see performance across classes.
 
 ```bash
-python eval.py --exp-name graphsage_train --run-time-stamp 2022-09-20T16-00-53 --model-type graphsage --use-test-set
+python eval.py --exp-name graphsage_train --run-time-stamp 2022-09-20T16-00-53 --model-name 400_graph_model.pt --model-type graphsage --use-test-set
 ```
 
 You may use `inference.py` to performance inference across an area of a WSI. This
@@ -107,7 +107,7 @@ will save a tsv of predictions per coordinate and produce a png to visualise the
 predictions.
 
 ```bash
-python inference.py
+python inference.py --exp-name graphsage_train --run-time-stamp 2022-09-20T16-00-53 --model-name 400_graph_model.pt --model-type graphsage --wsi-id 1 --x-min 93481 --y-min 8540 --width 5000 --height 5000
 ```
 
 ## Experiments

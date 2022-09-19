@@ -86,7 +86,7 @@ def main(
     # make tsv of predictions and coordinates
     label_dict = {tissue.id: tissue.label for tissue in organ.tissues}
     predicted_labels = [label_dict[label] for label in predicted_labels]
-    _save_tissue_preds_as_tsv(predicted_labels, pos, save_path)
+    _save_tissue_preds_as_tsv(predicted_labels, pos, save_path / f"x{x_min}_y{y_min}_w{width}_h{height}.csv")
 
 
 def _remove_unlabelled(groundtruth, predicted_labels, pos, out):
@@ -106,7 +106,7 @@ def _save_tissue_preds_as_tsv(predicted_labels, coords, save_path):
             "class": predicted_labels,
         }
     )
-    tissue_preds_df.to_csv(save_path / "tissue_preds.tsv", sep="\t", index=False)
+    tissue_preds_df.to_csv(save_path, sep="\t", index=False)
 
 
 if __name__ == "__main__":
