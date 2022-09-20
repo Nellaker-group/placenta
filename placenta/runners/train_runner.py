@@ -98,7 +98,7 @@ class TrainRunner:
                 self._model = torch.load(self.params.pretrained)
             else:
                 self._model = self.setup_model()
-        self._model = self._model.to(self.params.device)
+            self._model = self._model.to(self.params.device)
         return self._model
 
     @property
@@ -172,6 +172,7 @@ class TrainRunner:
         """Processes a batch and returns the number of correct predictions."""
         raise NotImplementedError(f"setup_criterion not implemented for {cls.__name__}")
 
+    @torch.no_grad()
     def validate(self):
         data = self.params.data
         self.model.eval()
@@ -391,6 +392,7 @@ class GraphSAINTRunner(TrainRunner):
             nodes=nodes,
         )
 
+    @torch.no_grad()
     def validate(self):
         data = self.params.data
         self.model.eval()
@@ -463,6 +465,7 @@ class ShaDowRunner(TrainRunner):
             nodes=nodes,
         )
 
+    @torch.no_grad()
     def validate(self):
         data = self.params.data
         self.model.eval()
@@ -542,6 +545,7 @@ class SIGNRunner(TrainRunner):
             nodes=nodes,
         )
 
+    @torch.no_grad()
     def validate(self):
         data = self.params.data
         self.model.eval()
@@ -625,6 +629,7 @@ class MLPRunner(TrainRunner):
             nodes=nodes,
         )
 
+    @torch.no_grad()
     def validate(self):
         data = self.params.data
         self.model.eval()
