@@ -3,13 +3,12 @@ from pathlib import Path
 import typer
 import numpy as np
 
-from utils import get_device
-from organs import Placenta as organ
-from utils import set_seed, get_project_dir
+from placenta.utils import get_device, set_seed, get_project_dir
+from placenta.organs import Placenta as organ
 from placenta.analysis.vis_groundtruth import visualize_points
-from dataset import Placenta
-from evaluation_plots import evaluate
-from enums import ModelsArg
+from placenta.dataset import Placenta
+from placenta.evaluation_plots import evaluate
+from placenta.enums import ModelsArg
 from placenta.runners.eval_runner import EvalParams, EvalRunner
 
 

@@ -5,13 +5,13 @@ import pytest
 
 from train import train
 from eval import eval_model
-from enums import *
-from utils import get_project_dir, setup_run, get_device, set_seed
+from placenta.enums import *
+from placenta.utils import get_project_dir, setup_run, get_device, set_seed
 from placenta.runners.train_runner import TrainParams, TrainRunner
 from placenta.runners.eval_runner import EvalParams, EvalRunner
 from placenta.logger.logger import Logger
-from organs import Placenta as organ
-from dataset import Placenta, get_nodes_within_tiles
+from placenta.organs import Placenta as organ
+from placenta.dataset import Placenta, get_nodes_within_tiles
 
 
 @pytest.fixture

@@ -3,12 +3,11 @@ from typing import Optional
 import typer
 
 from placenta.logger.logger import Logger
-from utils import setup_run, get_device
-from enums import ModelsArg
+from placenta.utils import setup_run, get_device, set_seed, get_project_dir
+from placenta.enums import ModelsArg
 from placenta.runners.train_runner import TrainParams, TrainRunner
-from utils import set_seed, get_project_dir
-from organs import Placenta as organ
-from dataset import Placenta
+from placenta.organs import Placenta as organ
+from placenta.dataset import Placenta
 
 
 def main(
@@ -23,6 +22,7 @@ def main(
     hidden_units: int = 256,
     dropout: float = 0.5,
     learning_rate: float = 0.001,
+    num_workers: int = 12,
     weighted_loss: bool = True,
     use_custom_weights: bool = True,
     validation_step: int = 100,
@@ -42,6 +42,7 @@ def main(
         hidden_units: number of hidden units per layer
         dropout: dropout rate on each layer and attention heads (if applicable)
         learning_rate: learning rate
+        num_workers: number of workers for the dataloader
         weighted_loss: whether to used weighted cross entropy
         use_custom_weights: if weighted loss, whether to use custom weights
         validation_step: number of epochs between validation check
@@ -73,7 +74,7 @@ def main(
         hidden_units,
         dropout,
         learning_rate,
-        12,
+        num_workers,
         weighted_loss,
         use_custom_weights,
         validation_step,
