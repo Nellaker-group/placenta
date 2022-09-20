@@ -2,21 +2,30 @@ from abc import ABC, abstractmethod
 import os.path as osp
 from pathlib import Path
 import h5py
+import json
 
 import torch
-from torch_geometric.data import InMemoryDataset, download_url, Data, Batch
+from torch_geometric.data import InMemoryDataset, Data, Batch
 from torch_geometric.utils import add_self_loops, degree
 from torch_geometric.transforms import ToUndirected, KNNGraph
 import matplotlib.tri as tri
 import numpy as np
 import pandas as pd
 
-from organs import organs
+import organs
 
 
 class GraphConstructor(ABC):
     @abstractmethod
     def construct(self, data_file: str, gt_file: str) -> Data:
+        pass
+
+    @abstractmethod
+    def save_params(self, run_path: Path):
+        pass
+
+    @abstractmethod
+    def node_splits(self, data, val_file, test_file):
         pass
 
     def read_hdf5(self, path: Path):
@@ -33,6 +42,19 @@ class GraphConstructor(ABC):
 class DefaultGraphConstructor(GraphConstructor):
     def __init__(self, raw_dir):
         self.raw_dir = raw_dir
+
+    def save_params(self, run_path):
+        params_dict = {
+            "wsi_ids": [1, 2],
+            "x_min": 0,
+            "y_min": 0,
+            "width": -1,
+            "height": -1,
+            "edge_method": "intersection",
+            "k": 5,
+        }
+        with open(run_path / "graph_params.csv", "w") as f:
+            json.dump(params_dict, f, indent=2)
 
     def construct(self, data_file, gt_file) -> Data:
         # Get cell data from hdf5 datasets
@@ -94,11 +116,9 @@ class DefaultGraphConstructor(GraphConstructor):
         return data
 
     def _finalise_graph_properties(self, data):
-        # TODO: check if this step is needed for intersection graph
-        if data.x.ndim == 1:
-            data.x = data.x.view(-1, 1)
         data = ToUndirected()(data)
         data.edge_index, data.edge_attr = add_self_loops(data["edge_index"])
+        # in-node degree norm for graphSAINT
         row, col = data.edge_index
         data.edge_weight = 1.0 / degree(col, data.num_nodes)[col]
         return data
@@ -111,7 +131,7 @@ class DefaultGraphConstructor(GraphConstructor):
         train_mask = torch.ones(data.num_nodes, dtype=torch.bool)
 
         # Mask unlabelled data to ignore during training
-        unlabelled_inds = (data.y == 0).nonzero()[:,0]
+        unlabelled_inds = (data.y == 0).nonzero()[:, 0]
         unlabelled_mask = torch.zeros(data.num_nodes, dtype=torch.bool)
         unlabelled_mask[unlabelled_inds] = True
         data.unlabelled_mask = unlabelled_mask
@@ -126,7 +146,7 @@ class DefaultGraphConstructor(GraphConstructor):
                 val_node_inds.extend(
                     get_nodes_within_tiles(
                         (row.x, row.y), row.width, row.height, all_xs, all_ys
-                    )
+                    ).tolist()
                 )
             val_mask[val_node_inds] = True
             train_mask[val_node_inds] = False
@@ -140,7 +160,7 @@ class DefaultGraphConstructor(GraphConstructor):
                 test_node_inds.extend(
                     get_nodes_within_tiles(
                         (row.x, row.y), row.width, row.height, all_xs, all_ys
-                    )
+                    ).tolist()
                 )
             test_mask[test_node_inds] = True
             train_mask[test_node_inds] = False
@@ -151,14 +171,97 @@ class DefaultGraphConstructor(GraphConstructor):
         return data
 
 
-# class DelaunyGraphConstructor(GraphConstructor):
-#     def construct(self, foo: int, bar: str) -> Data:
-#         self.read_hdf5()
-#
-#
-# class KNNGraphConstructor(GraphConstructor):
-#     def construct(self, foo: int, bar: str) -> Data:
-#         self.read_hdf5()
+class DelaunayGraphConstructor(DefaultGraphConstructor):
+    def save_params(self, run_path):
+        params_dict = {
+            "wsi_ids": [1, 2],
+            "x_min": 0,
+            "y_min": 0,
+            "width": -1,
+            "height": -1,
+            "edge_method": "delaunay",
+        }
+        with open(run_path / "graph_params.csv", "w") as f:
+            json.dump(params_dict, f, indent=2)
+
+    def _build_edges(self, data):
+        triang = tri.Triangulation(data.pos[:, 0], data.pos[:, 1])
+        data.edge_index = torch.tensor(triang.edges.astype("int64"), dtype=torch.long).T
+        return data
+
+
+class KNNGraphConstructor(DefaultGraphConstructor):
+    def __init__(self, raw_dir, k):
+        super().__init__(raw_dir)
+        self.k = k
+
+    def save_params(self, run_path):
+        params_dict = {
+            "wsi_ids": [1, 2],
+            "x_min": 0,
+            "y_min": 0,
+            "width": -1,
+            "height": -1,
+            "edge_method": "knn",
+            "k": self.k,
+        }
+        with open(run_path / "graph_params.csv", "w") as f:
+            json.dump(params_dict, f, indent=2)
+
+    def _build_edges(self, data):
+        data = KNNGraph(k=self.k, loop=False, force_undirected=True)(data)
+        return data
+
+
+class OneHotGraphConstructor(DefaultGraphConstructor):
+    def __init__(self, raw_dir):
+        super().__init__(raw_dir)
+
+    def save_params(self, run_path):
+        params_dict = {
+            "wsi_ids": [1, 2],
+            "x_min": 0,
+            "y_min": 0,
+            "width": -1,
+            "height": -1,
+            "edge_method": "intersection",
+            "k": 5,
+            "feature": "one_hot",
+        }
+        with open(run_path / "graph_params.csv", "w") as f:
+            json.dump(params_dict, f, indent=2)
+
+    def construct(self, data_file, gt_file) -> Data:
+        # Get cell data from hdf5 datasets
+        cells, embeddings, coords, confidence = self.read_hdf5(self.raw_dir / data_file)
+        cells, embeddings, coords, confidence = self._sort_cell_data(
+            cells, embeddings, coords, confidence
+        )
+        # Get groundtruth data from tsv file
+        groundtruth_df = pd.read_csv(self.raw_dir / gt_file, sep="\t")
+        xs, ys, groundtruth = self._sort_groundtruth(groundtruth_df)
+        # Create graph
+        one_hot_cells = self._one_hot_encode_cells(cells)
+        data = Data(
+            x=torch.Tensor(one_hot_cells), pos=torch.Tensor(coords.astype("int32"))
+        )
+        data = self._build_edges(data)
+        data.y = torch.Tensor(groundtruth).type(torch.LongTensor)
+        data = self._finalise_graph_properties(data)
+        return data
+
+    def _one_hot_encode_cells(self, cells):
+        cell_classes = [cell.id for cell in organs.Placenta.cells]
+        preds = pd.Series(cells)
+        one_hot_preds = pd.get_dummies(preds)
+        missing_cells = []
+        for cell in cell_classes:
+            if cell not in one_hot_preds.columns:
+                missing_cells.append(cell)
+        for cell in missing_cells:
+            one_hot_preds[cell] = 0
+        one_hot_preds = one_hot_preds[cell_classes]
+        return one_hot_preds.to_numpy()
 
 
 def get_nodes_within_tiles(tile_coords, tile_width, tile_height, all_xs, all_ys):
@@ -168,7 +271,7 @@ def get_nodes_within_tiles(tile_coords, tile_width, tile_height, all_xs, all_ys)
         (np.logical_and(all_xs > tile_min_x, (all_ys > tile_min_y))),
         (np.logical_and(all_xs < tile_max_x, (all_ys < tile_max_y))),
     )
-    return mask.nonzero()[:, 0].tolist()
+    return mask.nonzero()[:, 0]
 
 
 class Placenta(InMemoryDataset):
@@ -234,3 +337,6 @@ class Placenta(InMemoryDataset):
         wsi_2_data = torch.load(osp.join(self.processed_dir, "wsi_2.pt"))
         data = Batch.from_data_list([wsi_1_data, wsi_2_data])
         return data
+
+    def save_params(self, run_path):
+        self.graph_constructor.save_params(run_path)

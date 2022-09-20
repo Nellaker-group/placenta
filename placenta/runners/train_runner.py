@@ -6,6 +6,7 @@ import json
 import numpy as np
 import torch
 import torch.nn as nn
+from torch_geometric.transforms import SIGN
 from torch_geometric.data import Data
 from sklearn.utils.class_weight import compute_class_weight
 from torch_geometric.loader import (
@@ -25,8 +26,8 @@ from placenta.models.graphsaint import GraphSAINT
 from placenta.models.shadow import ShaDowGCN
 from placenta.models.sign import SIGN as SIGN_MLP
 from placenta.models.mlp import MLP
-from placenta.organs.organs import Organ
-from placenta.graphs.enums import ModelsArg
+from organs import Organ
+from enums import ModelsArg
 
 
 @dataclass
@@ -42,16 +43,16 @@ class TrainParams:
     hidden_units: int
     dropout: float
     learning_rate: float
+    num_workers: int
     weighted_loss: bool
     custom_weights: bool
+    validation_step: int
     organ: Organ
 
-    def save(self, run_path):
-        to_save = {
-            k: v
-            for k, v in asdict(self).items()
-            if k not in ("data", "organ")
-        }
+    def save(self, seed, exp_name, run_path):
+        to_save = {k: v for k, v in asdict(self).items() if k not in ("data", "organ")}
+        to_save["seed"] = seed
+        to_save["exp_name"] = exp_name
         with open(run_path / "train_params.csv", "w") as f:
             json.dump(to_save, f, indent=2)
 
@@ -138,6 +139,10 @@ class TrainRunner:
             f"setup_dataloader not implemented for {cls.__name__}"
         )
 
+    def prepare_data(self):
+        self.params.data.x.to(self.params.device)
+        self.params.data.edge_index.to(self.params.device)
+
     @classmethod
     def setup_model(cls):
         raise NotImplementedError(f"setup_model not implemented for {cls.__name__}")
@@ -196,7 +201,7 @@ class GraphSAGERunner(TrainRunner):
             ],
             batch_size=self.params.batch_size,
             shuffle=True,
-            num_workers=12,
+            num_workers=self.params.num_workers,
         )
         val_loader = NeighborLoader(
             copy.copy(self.params.data),
@@ -258,14 +263,14 @@ class ClusterGCNRunner(TrainRunner):
             cluster_data,
             batch_size=self.params.batch_size,
             shuffle=True,
-            num_workers=12,
+            num_workers=self.params.num_workers,
         )
         val_loader = NeighborSampler(
             self.params.data.edge_index,
             sizes=[-1],
             batch_size=1024,
             shuffle=False,
-            num_workers=12,
+            num_workers=self.params.num_workers,
         )
         return train_loader, val_loader
 
@@ -335,14 +340,14 @@ class GraphSAINTRunner(TrainRunner):
             num_steps=30,
             sample_coverage=self.params.num_neighbours,
             shuffle=True,
-            num_workers=12,
+            num_workers=self.params.num_workers,
         )
         val_loader = NeighborSampler(
             self.params.data.edge_index,
             sizes=[-1],
             batch_size=1024,
             shuffle=False,
-            num_workers=12,
+            num_workers=self.params.num_workers,
         )
         return train_loader, val_loader
 
@@ -403,6 +408,11 @@ class GraphSAINTRunner(TrainRunner):
 
 
 class ShaDowRunner(TrainRunner):
+    def prepare_data(self):
+        # bug in pyg when using shadow model and Batch
+        del self.params.data.batch
+        super().prepare_data()
+
     def setup_dataloader(self):
         train_loader = ShaDowKHopSampler(
             self.params.data,
@@ -410,7 +420,7 @@ class ShaDowRunner(TrainRunner):
             num_neighbors=self.params.num_neighbours,
             node_idx=self.params.data.train_mask,
             batch_size=self.params.batch_size,
-            num_workers=12,
+            num_workers=self.params.num_workers,
         )
         val_loader = ShaDowKHopSampler(
             self.params.data,
@@ -418,7 +428,7 @@ class ShaDowRunner(TrainRunner):
             num_neighbors=self.params.num_neighbours,
             node_idx=None,
             batch_size=self.params.batch_size,
-            num_workers=12,
+            num_workers=self.params.num_workers,
             shuffle=False,
         )
         return train_loader, val_loader
@@ -476,11 +486,19 @@ class ShaDowRunner(TrainRunner):
 
 
 class SIGNRunner(TrainRunner):
+    def prepare_data(self):
+        # precompute SIGN fixed embeddings
+        self.params.data = SIGN(self.params.layers)(self.params.data)
+        super().prepare_data()
+
     def setup_dataloader(self):
         train_idx = self.params.data.train_mask.nonzero(as_tuple=False).view(-1)
         val_idx = self.params.data.val_mask.nonzero(as_tuple=False).view(-1)
         train_loader = DataLoader(
-            train_idx, batch_size=self.params.batch_size, shuffle=True, num_workers=12
+            train_idx,
+            batch_size=self.params.batch_size,
+            shuffle=True,
+            num_workers=self.params.num_workers,
         )
         val_loader = DataLoader(
             val_idx, batch_size=self.params.batch_size, shuffle=False
@@ -564,7 +582,10 @@ class MLPRunner(TrainRunner):
         train_idx = self.params.data.train_mask.nonzero(as_tuple=False).view(-1)
         val_idx = self.params.data.val_mask.nonzero(as_tuple=False).view(-1)
         train_loader = DataLoader(
-            train_idx, batch_size=self.params.batch_size, shuffle=True, num_workers=12
+            train_idx,
+            batch_size=self.params.batch_size,
+            shuffle=True,
+            num_workers=self.params.num_workers,
         )
         val_loader = DataLoader(
             val_idx, batch_size=self.params.batch_size, shuffle=False
