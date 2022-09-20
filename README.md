@@ -136,7 +136,7 @@ python train.py --exp-name clustergcn_train --model-type clustergcn --batch-size
 python train.py --exp-name graphsaint_train --model-type graphsaint --batch-size 32000 --num-neighbours 500
 python train.py --exp-name sign_train --model-type sign --batch-size 51200 --num-neighbours 10
 python train.py --exp-name shadow_train --model-type shadow --batch-size 4000 --num-neighbours 5 --layers 8
-python train.py --exp-name gat_train --model-type gat --batch-size 200 --num-neighbours 400 --layers 2 --dropout 0.25
+python train.py --exp-name gat_train --model-type gat --batch-size 400 --num-neighbours 400 --layers 2 --dropout 0.25
 python train.py --exp-name gatv2_train --model-type gatv2 --batch-size 200 --num-neighbours 400 --layers 2 --dropout 0.25
 ```
 
