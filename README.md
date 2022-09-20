@@ -8,9 +8,8 @@ Learning Structure from Histology Cell Graphs (Neurips 2022)**.
 This repo contains the PyTorch and PyTorch Geometric implementation for downloading 
 and processing the dataset, *Placenta*, and running all main paper experiments.
 
-
-Images of cell graph thumbnails and zoomed in histology -> overlay -> graph -> GT
-
+![From Histology Image To Graphs](readme_imgs/zoomed_graphs.png)
+![Input WSI Cell Graphs](readme_imgs/cell_graphs.png)
 
 ## Installation
 
