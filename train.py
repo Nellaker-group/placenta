@@ -1,15 +1,14 @@
 from typing import Optional
 
 import typer
-from torch_geometric.transforms import SIGN
 
 from placenta.logger.logger import Logger
-from placenta.utils.utils import setup_run, get_device
-from placenta.graphs.enums import ModelsArg
+from utils import setup_run, get_device
+from enums import ModelsArg
 from placenta.runners.train_runner import TrainParams, TrainRunner
-from placenta.utils.utils import send_graph_to_device, set_seed, get_project_dir
-from placenta.organs.organs import Placenta as organ
-from placenta.data.dataset import Placenta
+from utils import set_seed, get_project_dir
+from organs import Placenta as organ
+from dataset import Placenta
 
 
 def main(
@@ -30,23 +29,23 @@ def main(
 ):
     """
     Train a model on the placenta dataset using the default cell graph construction.
-    :param seed: set the random seed
-    :param exp_name: name of the experiment (used for saving the model)
-    :param pretrained: path to a pretrained model
-    :param model_type: type of model to train, one of ModelsArg
-    :param batch_size: batch size
-    :param num_neighbours: neighbours per hop or cluster size or sample coverage
-    :param epochs: max number of epochs to train for
-    :param layers: number of model layers (and usually hops)
-    :param hidden_units: number of hidden units per layer
-    :param dropout: dropout rate on each layer and attention heads
-    :param learning_rate: learning rate
-    :param weighted_loss: whether to used weighted cross entropy
-    :param use_custom_weights: whether to use custom weights for the loss
-    :param validation_step: number of steps between validation check
-    :param verbose: whether to print graph setup
-    """
 
+    Args:
+        seed: set the random seed
+        exp_name: name of the experiment (used for saving the model)
+        pretrained: path to a pretrained model
+        model_type: type of model to train, one of ModelsArg
+        batch_size: batch size
+        num_neighbours: neighbours per hop or cluster size or sample coverage
+        epochs: max number of epochs to train for
+        layers: number of model layers (and usually hops)
+        hidden_units: number of hidden units per layer
+        dropout: dropout rate on each layer and attention heads (if applicable)
+        learning_rate: learning rate
+        weighted_loss: whether to used weighted cross entropy
+        use_custom_weights: if weighted loss, whether to use custom weights
+        validation_step: number of epochs between validation check
+    """
     device = get_device()
     set_seed(seed)
     project_dir = get_project_dir()
@@ -61,13 +60,6 @@ def main(
     dataset = Placenta(project_dir / "datasets")
     data = dataset[0]
 
-    # Final data setup
-    if model_type.value == "shadow":
-        del data.batch  # bug in pyg when using shadow model and Batch
-    elif model_type.value == "sign":
-        data = SIGN(layers)(data)  # precompute SIGN fixed embeddings
-    send_graph_to_device(data, device)
-
     # Setup training parameters, including dataloaders and models
     run_params = TrainParams(
         data,
@@ -81,8 +73,10 @@ def main(
         hidden_units,
         dropout,
         learning_rate,
+        12,
         weighted_loss,
         use_custom_weights,
+        validation_step,
         organ,
     )
     train_runner = TrainRunner.new(run_params)
@@ -92,7 +86,15 @@ def main(
     dataset.save_params(run_path)
     train_runner.params.save(seed, exp_name, run_path)
 
-    # Train!
+    # train!
+    train(train_runner, logger, run_path)
+
+
+def train(train_runner, logger, run_path):
+    train_runner.prepare_data()
+    epochs = train_runner.params.epochs
+    validation_step = train_runner.params.validation_step
+
     try:
         print("Training:")
         prev_best_val = 0

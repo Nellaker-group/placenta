@@ -5,14 +5,14 @@ import h5py
 import json
 
 import torch
-from torch_geometric.data import InMemoryDataset, download_url, Data, Batch
+from torch_geometric.data import InMemoryDataset, Data, Batch
 from torch_geometric.utils import add_self_loops, degree
 from torch_geometric.transforms import ToUndirected, KNNGraph
 import matplotlib.tri as tri
 import numpy as np
 import pandas as pd
 
-from organs import organs
+import organs
 
 
 class GraphConstructor(ABC):
@@ -22,6 +22,10 @@ class GraphConstructor(ABC):
 
     @abstractmethod
     def save_params(self, run_path: Path):
+        pass
+
+    @abstractmethod
+    def node_splits(self, data, val_file, test_file):
         pass
 
     def read_hdf5(self, path: Path):
@@ -47,6 +51,7 @@ class DefaultGraphConstructor(GraphConstructor):
             "width": -1,
             "height": -1,
             "edge_method": "intersection",
+            "k": 5,
         }
         with open(run_path / "graph_params.csv", "w") as f:
             json.dump(params_dict, f, indent=2)
@@ -166,14 +171,46 @@ class DefaultGraphConstructor(GraphConstructor):
         return data
 
 
-# class DelaunayGraphConstructor(GraphConstructor):
-#     def construct(self, data_file: str, gt_file: str) -> Data
-#         self.read_hdf5()
-#
+class DelaunayGraphConstructor(DefaultGraphConstructor):
+    def save_params(self, run_path):
+        params_dict = {
+            "wsi_ids": [1, 2],
+            "x_min": 0,
+            "y_min": 0,
+            "width": -1,
+            "height": -1,
+            "edge_method": "delaunay",
+        }
+        with open(run_path / "graph_params.csv", "w") as f:
+            json.dump(params_dict, f, indent=2)
 
-# class KNNGraphConstructor(GraphConstructor):
-#     def construct(self, data_file: str, gt_file: str) -> Data
-#         self.read_hdf5()
+    def _build_edges(self, data):
+        triang = tri.Triangulation(data.pos[:, 0], data.pos[:, 1])
+        data.edge_index = torch.tensor(triang.edges.astype("int64"), dtype=torch.long).T
+        return data
+
+
+class KNNGraphConstructor(DefaultGraphConstructor):
+    def __init__(self, raw_dir, k):
+        super().__init__(raw_dir)
+        self.k = k
+
+    def save_params(self, run_path):
+        params_dict = {
+            "wsi_ids": [1, 2],
+            "x_min": 0,
+            "y_min": 0,
+            "width": -1,
+            "height": -1,
+            "edge_method": "knn",
+            "k": self.k,
+        }
+        with open(run_path / "graph_params.csv", "w") as f:
+            json.dump(params_dict, f, indent=2)
+
+    def _build_edges(self, data):
+        data = KNNGraph(k=self.k, loop=False, force_undirected=True)(data)
+        return data
 
 
 def get_nodes_within_tiles(tile_coords, tile_width, tile_height, all_xs, all_ys):

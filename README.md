@@ -116,14 +116,14 @@ Performance on test data using existing scalable architectures:
 
 | Model Architecture | Accuracy   | Top 2 Accuracy | ROC AUC     |
 |--------------------|------------|----------------|-------------|
-| MLP                | 49.50±0.00 | 76.21±0.00     | 0.811±0.000 |
+| MLP                | 47.98±0.79 | 75.22±0.92     | 0.750±0.003 |
 | GraphSAGE-mean     | 64.88±0.43 | 88.94±0.38     | 0.883±0.005 |
 | ClusterGCN         | 64.24±1.21 | 88.26±0.82     | 0.882±0.006 |
 | GraphSAINT-rw      | 63.94±0.23 | 87.86±0.15     | 0.895±0.002 |
-| SIGN               | 71.84±0.00 | 92.40±0.00     | 0.970±0.000 |
+| SIGN               | 64.77±0.43 | 88.32±0.42     | 0.886±0.002 |
 | ShaDow             | 63.04±0.77 | 86.88±0.74     | 0.863±0.008 |
-| ClusterGAT         | 58.28±0.07 | 83.76±0.07     | 0.851±0.002 |
-| ClusterGATv2       | 52.99±0.96 | 78.02±1.43     | 0.834±0.004 |
+| ClusterGAT         | 58.07±0.61 | 83.43±0.96     | 0.851±0.002 |
+| ClusterGATv2       | 57.07±0.65 | 83.21±0.55     | 0.854±0.005 |
 
 
 Training configurations for these experiments:
@@ -138,3 +138,9 @@ python train.py --exp-name shadow_train --model-type shadow --batch-size 4000 --
 python train.py --exp-name gat_train --model-type gat --batch-size 200 --num-neighbours 400 --layers 2 --dropout 0.25
 python train.py --exp-name gatv2_train --model-type gatv2 --batch-size 200 --num-neighbours 400 --layers 2 --dropout 0.25
 ```
+
+## Visualisation
+
+Ground truth points for a region of a WSI can be plotted using 
+`placenta/analysis/vis_groundtruth.py`. The plot will be saved to 
+`visualisations/groundtruth/wsi_{wsi_id}/x{x_min}_y{y_min}_w{width}_h{height}.png`.

@@ -208,3 +208,4 @@ debug_dir
 *.sh
 .vscode
 notebooks
+.pytest_cache

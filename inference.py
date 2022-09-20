@@ -4,12 +4,12 @@ import typer
 import numpy as np
 import pandas as pd
 
-from placenta.utils.utils import get_device
-from placenta.organs.organs import Placenta as organ
-from placenta.utils.utils import set_seed, get_project_dir
-from placenta.graphs.enums import ModelsArg
-from placenta.analysis.vis_graph_patch import visualize_points
-from placenta.data.dataset import Placenta, get_nodes_within_tiles
+from utils import get_device
+from organs import Placenta as organ
+from utils import set_seed, get_project_dir
+from enums import ModelsArg
+from placenta.analysis.vis_groundtruth import visualize_points
+from dataset import Placenta, get_nodes_within_tiles
 from placenta.runners.eval_runner import EvalParams, EvalRunner
 
 
@@ -25,6 +25,22 @@ def main(
     height: int = -1,
     remove_unlabelled: bool = False,
 ):
+    """
+    Runs inference of a model for a region of a wsi. Will save the predictions
+    as a tsv file and will plot the predictions.
+
+    Args:
+        exp_name: Name of experiment for which model was trained in.
+        run_time_stamp: Time stamp of the run for which model was trained in.
+        model_name: Name of model weights file to load and evaluate.
+        model_type: Type of model to evaluate. One of ModelsArg
+        wsi_id: ID of the wsi to run inference on.
+        x_min: x coordinate of the top left corner of the region to run inference on.
+        y_min: y coordinate of the top left corner of the region to run inference on.
+        width: width of the region to run inference on. -1 means max width.
+        height: height of the region to run inference on. -1 means max height.
+        remove_unlabelled: Whether to remove unlabelled pixels from the predictions.
+    """
     device = get_device()
     set_seed(0)
     project_dir = get_project_dir()
@@ -86,7 +102,9 @@ def main(
     # make tsv of predictions and coordinates
     label_dict = {tissue.id: tissue.label for tissue in organ.tissues}
     predicted_labels = [label_dict[label] for label in predicted_labels]
-    _save_tissue_preds_as_tsv(predicted_labels, pos, save_path / f"x{x_min}_y{y_min}_w{width}_h{height}.csv")
+    _save_tissue_preds_as_tsv(
+        predicted_labels, pos, save_path / f"x{x_min}_y{y_min}_w{width}_h{height}.csv"
+    )
 
 
 def _remove_unlabelled(groundtruth, predicted_labels, pos, out):

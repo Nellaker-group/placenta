@@ -3,13 +3,13 @@ from pathlib import Path
 import typer
 import numpy as np
 
-from placenta.utils.utils import get_device
-from placenta.organs.organs import Placenta as organ
-from placenta.utils.utils import set_seed, get_project_dir
-from placenta.analysis.vis_graph_patch import visualize_points
-from placenta.data.dataset import Placenta
-from placenta.eval.eval import evaluate
-from placenta.graphs.enums import ModelsArg
+from utils import get_device
+from organs import Placenta as organ
+from utils import set_seed, get_project_dir
+from placenta.analysis.vis_groundtruth import visualize_points
+from dataset import Placenta
+from evaluation_plots import evaluate
+from enums import ModelsArg
 from placenta.runners.eval_runner import EvalParams, EvalRunner
 
 
@@ -20,6 +20,17 @@ def main(
     model_type: ModelsArg = typer.Option(...),
     use_test_set: bool = False,
 ):
+    """
+    Evaluates a model against the default validation or test set. Will print
+    some evaluation metrics and will plot confusion matrices and PR curves.
+
+    Args:
+        exp_name: Name of experiment for which model was trained in.
+        run_time_stamp: Time stamp of the run for which model was trained in.
+        model_name: Name of model weights file to load and evaluate.
+        model_type: Type of model to evaluate. One of ModelsArg
+        use_test_set: Whether to use the test set or validation set for evaluation
+    """
     device = get_device()
     set_seed(0)
     project_dir = get_project_dir()
@@ -39,6 +50,24 @@ def main(
     eval_params = EvalParams(data, device, pretrained_path, model_type, 512, organ)
     eval_runner = EvalRunner.new(eval_params)
 
+    # Setup paths
+    model_epochs = (
+        "model_final"
+        if model_name == "graph_model.pt"
+        else f"model_{model_name.split('_')[0]}"
+    )
+    save_path = (
+        Path(*pretrained_path.parts[:-1]) / "eval" / model_epochs
+    )
+    save_path.mkdir(parents=True, exist_ok=True)
+
+    # Evaluate!
+    eval_model(eval_runner, use_test_set, save_path)
+
+
+def eval_model(eval_runner, use_test_set, save_path):
+    data = eval_runner.params.data
+
     # Run inference and get predicted labels for nodes
     out, embeddings, predicted_labels = eval_runner.inference()
 
@@ -54,16 +83,6 @@ def main(
         groundtruth, predicted_labels, pos, out
     )
 
-    # Setup paths
-    model_epochs = (
-        "model_final"
-        if model_name == "graph_model.pt"
-        else f"model_{model_name.split('_')[0]}"
-    )
-    save_path = Path(*pretrained_path.parts[:-1]) / "eval" / model_epochs
-    save_path.mkdir(parents=True, exist_ok=True)
-    plot_name = "test_patch.png" if use_test_set else "val_patch.png"
-
     # Evaluate against ground truth tissue annotations
     evaluate(groundtruth, predicted_labels, out, organ, save_path)
 
@@ -71,8 +90,8 @@ def main(
     print("Generating image")
     colours_dict = {tissue.id: tissue.colour for tissue in organ.tissues}
     colours = [colours_dict[label] for label in predicted_labels]
+    plot_name = "test_patch.png" if use_test_set else "val_patch.png"
     visualize_points(
-        organ,
         save_path / plot_name,
         pos,
         colours=colours,

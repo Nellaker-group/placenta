@@ -2,7 +2,7 @@ from abc import ABC, abstractmethod
 
 import pandas as pd
 
-from placenta.eval.eval import plot_confusion_matrix
+from evaluation_plots import plot_confusion_matrix
 
 
 class _Appender(ABC):
