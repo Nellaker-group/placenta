@@ -3,7 +3,8 @@
 ## Overview
 
 Accompanying repository for **A New Graph Node Classification Benchmark: 
-Learning Structure from Histology Cell Graphs (Neurips 2022)**. 
+Learning Structure from Histology Cell Graphs 
+(New Frontiers in Graph Learning, Neurips 2022)**. 
 
 This repo contains the PyTorch and PyTorch Geometric implementation for downloading 
 and processing the dataset, *Placenta*, and running all main paper experiments.
