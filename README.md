@@ -77,8 +77,9 @@ If you wish to define an entirely new graph from the raw data, you can create a
 new `GraphConstructor`. This could be to define new edges, change the node features,
 or change the data splits, and so on. 
 
-When using a new `GraphConstructor`, you will need to remove (or rename) the old 
-processed data.
+NOTE: When using a new `GraphConstructor`, you will need to remove (or rename) the old 
+processed data. Otherwise, the processing step will be skipped 
+(from pyg `torch_geometric.data.InMemoryDataset`).
 
 ## Training
 

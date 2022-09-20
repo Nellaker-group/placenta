@@ -213,6 +213,57 @@ class KNNGraphConstructor(DefaultGraphConstructor):
         return data
 
 
+class OneHotGraphConstructor(DefaultGraphConstructor):
+    def __init__(self, raw_dir):
+        super().__init__(raw_dir)
+
+    def save_params(self, run_path):
+        params_dict = {
+            "wsi_ids": [1, 2],
+            "x_min": 0,
+            "y_min": 0,
+            "width": -1,
+            "height": -1,
+            "edge_method": "intersection",
+            "k": 5,
+            "feature": "one_hot",
+        }
+        with open(run_path / "graph_params.csv", "w") as f:
+            json.dump(params_dict, f, indent=2)
+
+    def construct(self, data_file, gt_file) -> Data:
+        # Get cell data from hdf5 datasets
+        cells, embeddings, coords, confidence = self.read_hdf5(self.raw_dir / data_file)
+        cells, embeddings, coords, confidence = self._sort_cell_data(
+            cells, embeddings, coords, confidence
+        )
+        # Get groundtruth data from tsv file
+        groundtruth_df = pd.read_csv(self.raw_dir / gt_file, sep="\t")
+        xs, ys, groundtruth = self._sort_groundtruth(groundtruth_df)
+        # Create graph
+        one_hot_cells = self._one_hot_encode_cells(cells)
+        data = Data(
+            x=torch.Tensor(one_hot_cells), pos=torch.Tensor(coords.astype("int32"))
+        )
+        data = self._build_edges(data)
+        data.y = torch.Tensor(groundtruth).type(torch.LongTensor)
+        data = self._finalise_graph_properties(data)
+        return data
+
+    def _one_hot_encode_cells(self, cells):
+        cell_classes = [cell.id for cell in organs.Placenta.cells]
+        preds = pd.Series(cells)
+        one_hot_preds = pd.get_dummies(preds)
+        missing_cells = []
+        for cell in cell_classes:
+            if cell not in one_hot_preds.columns:
+                missing_cells.append(cell)
+        for cell in missing_cells:
+            one_hot_preds[cell] = 0
+        one_hot_preds = one_hot_preds[cell_classes]
+        return one_hot_preds.to_numpy()
+
+
 def get_nodes_within_tiles(tile_coords, tile_width, tile_height, all_xs, all_ys):
     tile_min_x, tile_min_y = tile_coords[0], tile_coords[1]
     tile_max_x, tile_max_y = tile_min_x + tile_width, tile_min_y + tile_height
