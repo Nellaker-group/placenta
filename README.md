@@ -19,7 +19,7 @@ Our codebase is writen in python=3.7.2.
 We recommend installation from source using the MakeFile which will install all 
 requirements:
 ```bash
-git clone git@github.com:Nellaker-group/placenta.git
+git clone anon/placenta.git # Anon until camera-ready
 cd placenta
 # Activate conda or venv environment with python installation:
 # e.g. conda create -y -n placenta python=3.7.2
