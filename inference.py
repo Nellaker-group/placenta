@@ -4,12 +4,11 @@ import typer
 import numpy as np
 import pandas as pd
 
-from utils import get_device
-from organs import Placenta as organ
-from utils import set_seed, get_project_dir
-from enums import ModelsArg
+from placenta.utils import get_device, set_seed, get_project_dir
+from placenta.organs import Placenta as organ
+from placenta.enums import ModelsArg
 from placenta.analysis.vis_groundtruth import visualize_points
-from dataset import Placenta, get_nodes_within_tiles
+from placenta.dataset import Placenta, get_nodes_within_tiles
 from placenta.runners.eval_runner import EvalParams, EvalRunner
 
 

@@ -3,9 +3,9 @@ import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.collections import LineCollection
 
-from dataset import Placenta, get_nodes_within_tiles
-from utils import get_project_dir
-from organs import Placenta as organ
+from placenta.dataset import Placenta, get_nodes_within_tiles
+from placenta.utils import get_project_dir
+from placenta.organs import Placenta as organ
 
 
 def main(

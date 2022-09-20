@@ -12,7 +12,7 @@ import matplotlib.tri as tri
 import numpy as np
 import pandas as pd
 
-import organs
+import placenta.organs
 
 
 class GraphConstructor(ABC):

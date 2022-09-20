@@ -14,8 +14,8 @@ from torch_geometric.loader import (
 
 from placenta.models.graphsaint import GraphSAINT
 from placenta.models.sign import SIGN as SIGN_MLP
-from organs import Organ
-from enums import ModelsArg
+from placenta.organs import Organ
+from placenta.enums import ModelsArg
 
 
 @dataclass

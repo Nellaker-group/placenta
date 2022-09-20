@@ -26,8 +26,8 @@ from placenta.models.graphsaint import GraphSAINT
 from placenta.models.shadow import ShaDowGCN
 from placenta.models.sign import SIGN as SIGN_MLP
 from placenta.models.mlp import MLP
-from organs import Organ
-from enums import ModelsArg
+from placenta.organs import Organ
+from placenta.enums import ModelsArg
 
 
 @dataclass
