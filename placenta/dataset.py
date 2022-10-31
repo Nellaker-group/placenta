@@ -12,7 +12,7 @@ import matplotlib.tri as tri
 import numpy as np
 import pandas as pd
 
-import placenta.organs
+from placenta.organs import Placenta as organ
 
 
 class GraphConstructor(ABC):
@@ -94,7 +94,7 @@ class DefaultGraphConstructor(GraphConstructor):
         return xs[sort_args], ys[sort_args], groundtruth[sort_args]
 
     def _get_tissue_label_mapping(self):
-        return {tissue.label: tissue.id for tissue in organs.Placenta.tissues}
+        return {tissue.label: tissue.id for tissue in organ.Placenta.tissues}
 
     def _build_edges(self, data):
         # knn graph
@@ -251,7 +251,7 @@ class OneHotGraphConstructor(DefaultGraphConstructor):
         return data
 
     def _one_hot_encode_cells(self, cells):
-        cell_classes = [cell.id for cell in organs.Placenta.cells]
+        cell_classes = [cell.id for cell in organ.Placenta.cells]
         preds = pd.Series(cells)
         one_hot_preds = pd.get_dummies(preds)
         missing_cells = []

@@ -50,8 +50,9 @@ and the edges represent interactions between cells.
 The raw data can be downloaded, processed, and 
 loaded into memory using `placenta.data.dataset.Placenta({root})`. 
 
-Alternatively, you may download the raw data from this link. Please move the data
-into `{root}/raw`.
+Alternatively, you may download the raw data from 
+[this link](https://drive.google.com/drive/folders/1DyDf4BHlMUE_MP8QfiO0Pvb0nTQxigj5?usp=share_link). 
+Please download all files and move them into `{root}/raw`.
 
 The raw data will be downloaded to `{root}/raw`. It consists of two hdf5 files 
 `wsi_1.hdf5` and `wsi_2.hdf5` containing the cell features and coordinates, 
