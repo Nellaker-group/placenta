@@ -69,11 +69,8 @@ class EvalRunner:
     @property
     def loader(self):
         if self._loader is None:
-            self._setup_loader()
+            self._loader = self.setup_dataloader()
         return self._loader
-
-    def _setup_loader(self):
-        self._loader = self.setup_dataloader()
 
     @classmethod
     def setup_dataloader(cls):
