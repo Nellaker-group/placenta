@@ -48,16 +48,19 @@ and the edges represent interactions between cells.
 | 2,395,747 | 5,486,089 | 799,745 | 64            | 9       |
 
 The raw data can be downloaded, processed, and 
-loaded into memory using `placenta.data.dataset.Placenta(root)`. 
+loaded into memory using `placenta.data.dataset.Placenta({root})`. 
 
-The raw data will be downloaded to `root/raw`. It consists of two hdf5 files 
+Alternatively, you may download the raw data from this link. Please move the data
+into `{root}/raw`.
+
+The raw data will be downloaded to `{root}/raw`. It consists of two hdf5 files 
 `wsi_1.hdf5` and `wsi_2.hdf5` containing the cell features and coordinates, 
 two tsv files `wsi_1.tsv` and `wsi_2.tsv` containing the ground truth labels, 
 and two csv files `val_patches.csv` and `test_patches.csv` containing the validation 
 and test patch coordinates.
 
 The raw data will be processed into two `torch_geometric.data.Data` objects and saved
-into `root/processed`. When loading the Placenta dataset into memory, both processed 
+into `{root}/processed`. When loading the Placenta dataset into memory, both processed 
 graphs will be combined into a single `torch_geometric.data.DataBatch` object.
 
 Nodes without ground truth labels are masked in `data.unlabelled_mask`, and the 
