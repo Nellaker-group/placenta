@@ -11,7 +11,7 @@ setup(
                 "Learning Structure from Histology Cell Graphs",
     long_description=long_description,
     long_description_content_type="text/markdown",
-    url="git@github.com:Nellaker-group/placenta.git",
+    url="https://github.com/Nellaker-group/placenta",
     packages=find_packages(include=["placenta"]),
     classifiers=[
         "Programming Language :: Python :: 3",
