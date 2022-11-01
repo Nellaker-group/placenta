@@ -6,12 +6,12 @@ with open("README.md", "r") as fh:
 setup(
     name="placenta",
     version="1.0.0",
-    author="Anon",
+    author="Claudia Vanea",
     description="A New Graph Node Classification Benchmark: "
                 "Learning Structure from Histology Cell Graphs",
     long_description=long_description,
     long_description_content_type="text/markdown",
-    url="Anon",
+    url="git@github.com:Nellaker-group/placenta.git",
     packages=find_packages(include=["placenta"]),
     classifiers=[
         "Programming Language :: Python :: 3",
