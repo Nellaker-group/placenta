@@ -22,6 +22,7 @@ setup(
         "console_scripts": [
             "train=train:main",
             "eval=eval:main",
+            "inference=inference:main",
         ]
     },
 )

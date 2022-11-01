@@ -3,16 +3,19 @@ import os.path as osp
 from pathlib import Path
 import h5py
 import json
+import ssl
+import sys
+import urllib
 
 import torch
-from torch_geometric.data import InMemoryDataset, Data, Batch
+from torch_geometric.data import InMemoryDataset, download_url, makedirs, Data, Batch
 from torch_geometric.utils import add_self_loops, degree
 from torch_geometric.transforms import ToUndirected, KNNGraph
 import matplotlib.tri as tri
 import numpy as np
 import pandas as pd
 
-import placenta.organs
+from placenta.organs import Placenta as organ
 
 
 class GraphConstructor(ABC):
@@ -94,7 +97,7 @@ class DefaultGraphConstructor(GraphConstructor):
         return xs[sort_args], ys[sort_args], groundtruth[sort_args]
 
     def _get_tissue_label_mapping(self):
-        return {tissue.label: tissue.id for tissue in organs.Placenta.tissues}
+        return {tissue.label: tissue.id for tissue in organ.Placenta.tissues}
 
     def _build_edges(self, data):
         # knn graph
@@ -251,7 +254,7 @@ class OneHotGraphConstructor(DefaultGraphConstructor):
         return data
 
     def _one_hot_encode_cells(self, cells):
-        cell_classes = [cell.id for cell in organs.Placenta.cells]
+        cell_classes = [cell.id for cell in organ.Placenta.cells]
         preds = pd.Series(cells)
         one_hot_preds = pd.get_dummies(preds)
         missing_cells = []
@@ -275,6 +278,15 @@ def get_nodes_within_tiles(tile_coords, tile_width, tile_height, all_xs, all_ys)
 
 
 class Placenta(InMemoryDataset):
+    url = "https://pub-8152782012194821b3e7acc933d5f80f.r2.dev/{}"
+
+    wsi_1_tsv_id = "wsi_1.tsv"
+    wsi_2_tsv_id = "wsi_2.tsv"
+    wsi_1_hdf5_id = "wsi_1.hdf5"
+    wsi_2_hdf5_id = "wsi_2.hdf5"
+    val_patches_id = "val_patches.csv"
+    test_patches_id = "test_patches.csv"
+
     def __init__(
         self,
         root,
@@ -308,9 +320,12 @@ class Placenta(InMemoryDataset):
         return ["wsi_1.pt", "wsi_2.pt"]
 
     def download(self):
-        pass  # Anon until camera-ready version
-        # Download to `self.raw_dir`
-        # path = download_url(url, self.raw_dir)
+        _download_url(self.url.format(self.val_patches_id), self.raw_dir)
+        _download_url(self.url.format(self.test_patches_id), self.raw_dir)
+        _download_url(self.url.format(self.wsi_1_tsv_id), self.raw_dir)
+        _download_url(self.url.format(self.wsi_2_tsv_id), self.raw_dir)
+        _download_url(self.url.format(self.wsi_1_hdf5_id), self.raw_dir)
+        _download_url(self.url.format(self.wsi_2_hdf5_id), self.raw_dir)
 
     def process(self):
         val_path = Path(self.raw_dir) / self.raw_file_names[-2]
@@ -340,3 +355,51 @@ class Placenta(InMemoryDataset):
 
     def save_params(self, run_path):
         self.graph_constructor.save_params(run_path)
+
+
+def _download_url(
+    url: str,
+    folder: str,
+    log: bool = True,
+):
+    r"""Downloads the content of an URL to a specific folder.
+
+    Args:
+        url (string): The url.
+        folder (string): The folder.
+        log (bool, optional): If :obj:`False`, will not print anything to the
+            console. (default: :obj:`True`)
+    """
+    filename = url.rpartition("/")[2]
+    filename = filename if filename[0] == "?" else filename.split("?")[0]
+    path = osp.join(folder, filename)
+
+    if osp.exists(path):  # pragma: no cover
+        if log:
+            print(f"Using existing file {filename}", file=sys.stderr)
+        return path
+
+    if log:
+        print(f"Downloading {url}", file=sys.stderr)
+
+    makedirs(folder)
+
+    context = ssl._create_unverified_context()
+    # Headers required for Cloudflare bot protection
+    hdrs = {
+        "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_9_3) "
+        "AppleWebKit/537.36 (KHTML, like Gecko) "
+        "Chrome/35.0.1916.47 Safari/537.36"
+    }
+    req = urllib.request.Request(url, headers=hdrs)
+    data = urllib.request.urlopen(req, context=context)
+
+    with open(path, 'wb') as f:
+        # workaround for https://bugs.python.org/issue42853
+        while True:
+            chunk = data.read(10 * 1024 * 1024)
+            if not chunk:
+                break
+            f.write(chunk)
+
+    return path
