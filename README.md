@@ -2,9 +2,9 @@
 
 ## Overview
 
-Accompanying repository for **A New Graph Node Classification Benchmark: 
-Learning Structure from Histology Cell Graphs 
-(New Frontiers in Graph Learning, Neurips 2022)**. 
+Accompanying repository for **[A New Graph Node Classification Benchmark: 
+Learning Structure from Histology Cell Graphs](https://arxiv.org/abs/2211.06292)**
+(New Frontiers in Graph Learning, NeurIPS 2022).
 
 This repo contains the PyTorch and PyTorch Geometric implementation for downloading 
 and processing the dataset, *Placenta*, and running all main paper experiments.
